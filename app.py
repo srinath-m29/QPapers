@@ -93,7 +93,7 @@ def download_url_filter(file_url, filename="paper.pdf"):
     )
 
 # ── Excel Student Registry ─────────────────────────────────────────────────────
-EXCEL_FILE = os.path.join(os.path.dirname(__file__), "ECE.xlsx")
+EXCEL_FILE = os.path.join(os.getcwd(), "ECE.xlsx")
 STUDENT_REGISTRY = {}  # reg_no -> {name, semester, status, section}
 
 def load_excel_students():
@@ -116,7 +116,7 @@ def load_excel_students():
     print(f"Loaded {len(STUDENT_REGISTRY)} students from Excel.")
 
 # ── Database ───────────────────────────────────────────────────────────────────
-DATABASE = os.path.join(os.path.dirname(__file__), "instance", "qpapers.db")
+DATABASE = os.path.join(os.getcwd(), "instance", "qpapers.db")
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
 DEPARTMENTS = [
