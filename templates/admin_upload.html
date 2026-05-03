@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Admin Upload{% endblock %}
+
+{% block content %}
+<h2>Upload Paper (Admin)</h2>
+
+<form method="POST" enctype="multipart/form-data">
+
+  <input type="text" name="subject_name" placeholder="Subject" required class="form-control mb-2">
+
+  <select name="department" class="form-control mb-2">
+    {% for d in departments %}
+    <option value="{{ d }}">{{ d }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="year" class="form-control mb-2">
+    {% for y in years %}
+    <option value="{{ y }}">{{ y }}</option>
+    {% endfor %}
+  </select>
+
+  <input type="file" name="file" class="form-control mb-3" required>
+
+  <button class="btn btn-success">Upload</button>
+
+</form>
+{% endblock %}

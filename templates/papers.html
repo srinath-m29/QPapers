@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Browse Papers{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Question Papers</h1>
+    <p class="page-sub">{{ papers|length }} paper{{ 's' if papers|length != 1 }} found</p>
+  </div>
+  <a href="{{ url_for('upload') }}" class="btn btn-qp-primary">
+    <i class="bi bi-cloud-arrow-up me-2"></i>Upload Paper
+  </a>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-panel mb-4">
+  <form method="GET" action="{{ url_for('papers') }}" class="row g-3 align-items-end">
+    <div class="col-sm-6 col-lg-3">
+      <label class="filter-label">Department</label>
+      <select name="department" class="form-select qp-select">
+        <option value="">All Departments</option>
+        {% for d in departments %}
+          <option value="{{ d }}" {% if d == selected_dept %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-6 col-lg-2">
+      <label class="filter-label">Year</label>
+      <select name="year" class="form-select qp-select">
+        <option value="">All Years</option>
+        {% for y in years %}
+          <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-lg-4">
+      <label class="filter-label">Subject</label>
+      <input type="text" name="subject" class="form-control qp-input"
+             placeholder="Search by subject name…"
+             value="{{ search_subject }}" />
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-qp-primary">
+        <i class="bi bi-filter me-1"></i>Filter
+      </button>
+    </div>
+    {% if selected_dept or selected_year or search_subject %}
+    <div class="col-auto">
+      <a href="{{ url_for('papers') }}" class="btn btn-qp-outline">
+        <i class="bi bi-x-circle me-1"></i>Clear
+      </a>
+    </div>
+    {% endif %}
+  </form>
+</div>
+
+<!-- Active filters display -->
+{% if selected_dept or selected_year or search_subject %}
+<div class="active-filters mb-4">
+  <span class="filter-label-sm">Active filters:</span>
+  {% if selected_dept %}<span class="filter-chip">{{ selected_dept }} <a href="?{% if selected_year %}year={{ selected_year }}{% endif %}{% if search_subject %}&subject={{ search_subject }}{% endif %}">×</a></span>{% endif %}
+  {% if selected_year %}<span class="filter-chip">{{ selected_year }} <a href="?{% if selected_dept %}department={{ selected_dept }}{% endif %}{% if search_subject %}&subject={{ search_subject }}{% endif %}">×</a></span>{% endif %}
+  {% if search_subject %}<span class="filter-chip">"{{ search_subject }}" <a href="?{% if selected_dept %}department={{ selected_dept }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}">×</a></span>{% endif %}
+</div>
+{% endif %}
+
+<!-- Papers Table / Cards -->
+{% if papers %}
+<div class="papers-table-wrap d-none d-lg-block">
+  <table class="table qp-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Subject</th>
+        <th>Department</th>
+        <th>Year</th>
+        <th>Uploaded By</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in papers %}
+      <tr>
+        <td class="text-muted small">{{ loop.index }}</td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <span class="pdf-icon-sm"><i class="bi bi-file-earmark-pdf-fill"></i></span>
+            <strong>{{ p.subject_name }}</strong>
+          </div>
+        </td>
+        <td><span class="dept-tag">{{ p.department }}</span></td>
+        <td><span class="year-tag">{{ p.year }}</span></td>
+        <td class="text-muted small">{{ p.uploaded_by }}</td>
+        <td class="text-muted small">{{ p.upload_date[:10] }}</td>
+        <td>
+          <div class="d-flex gap-2">
+            <!-- View: open the exact Cloudinary URL in a new tab — always works -->
+            <a href="{{ p.file_url }}" target="_blank" class="btn btn-qp-sm" title="View PDF">
+              <i class="bi bi-eye"></i> View
+            </a>
+
+            <!-- Download: Flask streams the file with correct .pdf filename -->
+            <a href="{{ url_for('force_download', paper_id=p.id) }}"
+               class="btn btn-qp-sm btn-outline-sm" title="Download PDF">
+              <i class="bi bi-download"></i> Download
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<!-- Mobile View (Cards) -->
+<div class="d-lg-none">
+  {% for p in papers %}
+  <div class="card mb-3 p-3 shadow-sm">
+    
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong>{{ p.subject_name }}</strong>
+      <span class="badge bg-primary">{{ p.year }}</span>
+    </div>
+
+    <div class="mb-2 text-muted small">
+      {{ p.department }}
+    </div>
+
+    <div class="mb-2 text-muted small">
+      Uploaded by: {{ p.uploaded_by }}
+    </div>
+
+    <div class="mb-3 text-muted small">
+      {{ p.upload_date[:10] }}
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ p.file_url }}" target="_blank" class="btn btn-dark btn-sm w-50">
+        <i class="bi bi-eye"></i> View
+      </a>
+
+      <a href="{{ url_for('force_download', paper_id=p.id) }}"
+        class="btn btn-outline-dark btn-sm w-50">
+        <i class="bi bi-download"></i> Download
+      </a>
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-search"></i>
+  <h4>No papers found</h4>
+  <p>Try adjusting your filters or upload the first paper.</p>
+  <a href="{{ url_for('upload') }}" class="btn btn-qp-primary mt-2">Upload Paper</a>
+</div>
+{% endif %}
+{% endblock %}

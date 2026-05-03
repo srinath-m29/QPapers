@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-sub">Good to see you, <strong>{{ session.student_name }}</strong> 👋
+      <small class="text-muted">&nbsp;|&nbsp; Sem {{ session.semester }} &nbsp;·&nbsp; {{ session.section }}</small>
+    </p>
+  </div>
+  <a href="{{ url_for('upload') }}" class="btn btn-qp-primary">
+    <i class="bi bi-cloud-arrow-up me-2"></i>Upload Paper
+  </a>
+</div>
+
+<!-- Pending notice -->
+{% if my_pending %}
+<div class="alert alert-warning qp-alert mb-4">
+  <i class="bi bi-hourglass-split me-2"></i>
+  You have <strong>{{ my_pending }}</strong> paper{{ 's' if my_pending != 1 }} awaiting admin approval.
+</div>
+{% endif %}
+
+<!-- Stats row -->
+<div class="row g-4 mb-5">
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card stat-blue">
+      <div class="stat-icon"><i class="bi bi-file-earmark-text"></i></div>
+      <div class="stat-body">
+        <div class="stat-value">{{ total }}</div>
+        <div class="stat-label">Approved Papers</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card stat-green">
+      <div class="stat-icon"><i class="bi bi-building"></i></div>
+      <div class="stat-body">
+        <div class="stat-value">{{ depts }}</div>
+        <div class="stat-label">Departments</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card stat-amber">
+      <div class="stat-icon"><i class="bi bi-search"></i></div>
+      <div class="stat-body">
+        <a href="{{ url_for('papers') }}" class="stat-action">Browse All</a>
+        <div class="stat-label">Search Papers</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card stat-purple">
+      <div class="stat-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+      <div class="stat-body">
+        <a href="{{ url_for('upload') }}" class="stat-action">Contribute</a>
+        <div class="stat-label">Upload a Paper</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick filter -->
+<div class="section-header">
+  <h3 class="section-title">Quick Filter</h3>
+</div>
+<div class="quick-filter-bar mb-5">
+  <form method="GET" action="{{ url_for('papers') }}" class="d-flex flex-wrap gap-3 align-items-end">
+    <div class="filter-field">
+      <label>Department</label>
+      <select name="department" class="form-select qp-select">
+        <option value="">All Departments</option>
+        {% for d in departments %}
+          <option value="{{ d }}">{{ d }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-field">
+      <label>Year</label>
+      <select name="year" class="form-select qp-select">
+        <option value="">All Years</option>
+        {% for y in years %}
+          <option value="{{ y }}">{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-field flex-grow-1">
+      <label>Subject</label>
+      <input type="text" name="subject" class="form-control qp-input" placeholder="Search subject…" />
+    </div>
+    <button type="submit" class="btn btn-qp-primary">
+      <i class="bi bi-search me-1"></i>Search
+    </button>
+  </form>
+</div>
+
+<!-- Recent Papers -->
+<div class="section-header">
+  <h3 class="section-title">Recently Approved</h3>
+  <a href="{{ url_for('papers') }}" class="section-link">View all <i class="bi bi-arrow-right"></i></a>
+</div>
+
+{% if recent %}
+<div class="row g-4">
+  {% for p in recent %}
+  <div class="col-sm-6 col-lg-4">
+    <div class="paper-card">
+      <div class="paper-card-icon">
+        <i class="bi bi-file-earmark-pdf"></i>
+      </div>
+      <div class="paper-card-body">
+        <div class="paper-dept-badge">{{ p.department }}</div>
+        <h5 class="paper-title">{{ p.subject_name }}</h5>
+        <div class="paper-meta">
+          <span><i class="bi bi-calendar3"></i> {{ p.year }}</span>
+          <span><i class="bi bi-person"></i> {{ p.uploaded_by }}</span>
+        </div>
+        <div class="paper-date text-muted small">{{ p.upload_date[:10] }}</div>
+      </div>
+      <div class="paper-card-footer">
+        <a href="{{ p.file_url }}" target="_blank" class="btn btn-qp-sm">
+          <i class="bi bi-eye me-1"></i>View
+        </a>
+        <a href="{{ url_for('force_download', paper_id=p.id) }}" class="btn btn-qp-sm btn-outline-sm">
+          <i class="bi bi-download me-1"></i>Download
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-folder-x"></i>
+  <h4>No approved papers yet</h4>
+  <p>Be the first to upload a question paper!</p>
+  <a href="{{ url_for('upload') }}" class="btn btn-qp-primary mt-2">Upload Now</a>
+</div>
+{% endif %}
+{% endblock %}

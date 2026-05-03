@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Manage Papers{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">All Papers</h1>
+    <p class="page-sub">{{ papers|length }} paper{{ 's' if papers|length != 1 }}</p>
+  </div>
+</div>
+
+<!-- Status Filter Tabs -->
+<div class="mb-4 d-flex gap-2 flex-wrap">
+  <a href="{{ url_for('admin_papers') }}"
+     class="btn {% if not selected_status %}btn-qp-primary{% else %}btn-qp-outline{% endif %}">
+    All
+  </a>
+  <a href="{{ url_for('admin_papers', status='pending') }}"
+     class="btn {% if selected_status == 'pending' %}btn-warning{% else %}btn-qp-outline{% endif %}">
+    <i class="bi bi-hourglass-split me-1"></i>Pending
+  </a>
+  <a href="{{ url_for('admin_papers', status='approved') }}"
+     class="btn {% if selected_status == 'approved' %}btn-success{% else %}btn-qp-outline{% endif %}">
+    <i class="bi bi-check-circle me-1"></i>Approved
+  </a>
+  <a href="{{ url_for('admin_papers', status='rejected') }}"
+     class="btn {% if selected_status == 'rejected' %}btn-danger{% else %}btn-qp-outline{% endif %}">
+    <i class="bi bi-x-circle me-1"></i>Rejected
+  </a>
+</div>
+
+{% if papers %}
+<div class="papers-table-wrap d-none d-lg-block">
+  <table class="table qp-table">
+    <thead>
+      <tr>
+        <th>#</th><th>Subject</th><th>Department</th><th>Year</th>
+        <th>Uploaded By</th><th>Date</th><th>Status</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in papers %}
+      <tr>
+        <td class="text-muted small">{{ loop.index }}</td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <span class="pdf-icon-sm"><i class="bi bi-file-earmark-pdf-fill"></i></span>
+            {{ p.subject_name }}
+          </div>
+        </td>
+        <td><span class="dept-tag">{{ p.department }}</span></td>
+        <td><span class="year-tag">{{ p.year }}</span></td>
+        <td class="small text-muted">{{ p.uploaded_by }}</td>
+        <td class="small text-muted">{{ p.upload_date[:10] }}</td>
+        <td>
+          {% if p.status == 'approved' %}
+            <span class="badge bg-success">Approved</span>
+          {% elif p.status == 'rejected' %}
+            <span class="badge bg-danger">Rejected</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="d-flex gap-1 flex-wrap">
+            <!-- View -->
+            <a href="{{ p.file_url }}" target="_blank" class="btn btn-qp-sm" title="View PDF">
+              <i class="bi bi-eye"></i>
+            </a>
+            <!-- Approve -->
+            {% if p.status != 'approved' %}
+            <form method="POST" action="{{ url_for('approve_paper', paper_id=p.id) }}" style="display:inline">
+              <button type="submit" class="btn btn-success btn-sm" title="Approve">
+                <i class="bi bi-check-lg"></i>
+              </button>
+            </form>
+            {% endif %}
+            <!-- Reject -->
+            {% if p.status != 'rejected' %}
+            <form method="POST" action="{{ url_for('reject_paper', paper_id=p.id) }}" style="display:inline">
+              <button type="submit" class="btn btn-warning btn-sm" title="Reject">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </form>
+            {% endif %}
+            <!-- Delete -->
+            <form method="POST" action="{{ url_for('delete_paper', paper_id=p.id) }}"
+                  onsubmit="return confirm('Delete this paper permanently?')" style="display:inline">
+              <button type="submit" class="btn btn-danger-sm" title="Delete">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Mobile View (Admin Cards) -->
+<div class="d-lg-none">
+  {% for p in papers %}
+  <div class="card mb-3 p-3 shadow-sm">
+
+    <!-- Title -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong>{{ p.subject_name }}</strong>
+      <span class="badge 
+        {% if p.status == 'approved' %}bg-success
+        {% elif p.status == 'rejected' %}bg-danger
+        {% else %}bg-warning text-dark{% endif %}">
+        {{ p.status }}
+      </span>
+    </div>
+
+    <!-- Details -->
+    <div class="text-muted small mb-1">{{ p.department }}</div>
+    <div class="text-muted small mb-1">{{ p.year }}</div>
+    <div class="text-muted small mb-1">By: {{ p.uploaded_by }}</div>
+    <div class="text-muted small mb-2">{{ p.upload_date[:10] }}</div>
+
+    <!-- Actions -->
+    <div class="d-flex flex-wrap gap-2">
+
+      <!-- View -->
+      <a href="{{ p.file_url }}" target="_blank" class="btn btn-dark btn-sm flex-fill">
+        <i class="bi bi-eye"></i>
+      </a>
+
+      <!-- Approve -->
+      {% if p.status != 'approved' %}
+      <form method="POST" action="{{ url_for('approve_paper', paper_id=p.id) }}" class="flex-fill">
+        <button class="btn btn-success btn-sm w-100">
+          <i class="bi bi-check-lg"></i>
+        </button>
+      </form>
+      {% endif %}
+
+      <!-- Reject -->
+      {% if p.status != 'rejected' %}
+      <form method="POST" action="{{ url_for('reject_paper', paper_id=p.id) }}" class="flex-fill">
+        <button class="btn btn-warning btn-sm w-100">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </form>
+      {% endif %}
+
+      <!-- Delete -->
+      <form method="POST" action="{{ url_for('delete_paper', paper_id=p.id) }}"
+            onsubmit="return confirm('Delete this paper permanently?')" class="flex-fill">
+        <button class="btn btn-danger btn-sm w-100">
+          <i class="bi bi-trash3"></i>
+        </button>
+      </form>
+
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-folder-x"></i>
+  <h4>No papers found</h4>
+  <p>No papers match this filter.</p>
+</div>
+{% endif %}
+{% endblock %}

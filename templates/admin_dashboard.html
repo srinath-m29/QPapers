@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Admin Dashboard</h1>
+    <p class="page-sub">Overview of the QPapers platform</p>
+  </div>
+  <span class="admin-badge-header"><i class="bi bi-shield-check me-1"></i>Admin</span>
+</div>
+
+<!-- Stats -->
+<div class="row g-4 mb-5">
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card stat-blue">
+      <div class="stat-icon"><i class="bi bi-file-earmark-text"></i></div>
+      <div class="stat-body">
+        <div class="stat-value">{{ total_papers }}</div>
+        <div class="stat-label">Total Papers</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card stat-amber">
+      <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+      <div class="stat-body">
+        <div class="stat-value">{{ pending_count }}</div>
+        <div class="stat-label">Pending Approval</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card stat-green">
+      <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+      <div class="stat-body">
+        <div class="stat-value">{{ approved_count }}</div>
+        <div class="stat-label">Approved Papers</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card stat-purple">
+      <div class="stat-icon"><i class="bi bi-people"></i></div>
+      <div class="stat-body">
+        <div class="stat-value">{{ total_students }}</div>
+        <div class="stat-label">Students (Excel)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick actions -->
+<div class="row g-3 mb-5">
+  <div class="col-auto">
+    <a href="{{ url_for('admin_papers', status='pending') }}" class="btn btn-warning">
+      <i class="bi bi-hourglass-split me-1"></i>Review Pending ({{ pending_count }})
+    </a>
+  </div>
+  <div class="col-auto">
+    <a href="{{ url_for('admin_papers') }}" class="btn btn-qp-outline">
+      <i class="bi bi-file-earmark-text me-1"></i>All Papers
+    </a>
+  </div>
+  <div class="col-auto">
+    <a href="{{ url_for('admin_students') }}" class="btn btn-qp-outline">
+      <i class="bi bi-people me-1"></i>Students
+    </a>
+  </div>
+  <div class="col-auto">
+    <a href="{{ url_for('admin_upload') }}" class="btn btn-success">
+      <i class="bi bi-upload me-1"></i>Upload Paper
+    </a>
+  </div>
+  <div class="col-auto">
+    <form method="POST" action="{{ url_for('clear_activity') }}"
+          onsubmit="return confirm('Delete all activity logs?')">
+      <button class="btn btn-danger">
+        <i class="bi bi-trash3 me-1"></i>Clear Activity
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Recent Papers -->
+  <div class="col-lg-8">
+    <div class="admin-section-card">
+      <div class="admin-section-header">
+        <h3>Recent Uploads</h3>
+        <a href="{{ url_for('admin_papers') }}" class="section-link">Manage All <i class="bi bi-arrow-right"></i></a>
+      </div>
+      {% if recent_papers %}
+      <div class="table-responsive">
+        <table class="table qp-table mb-0">
+          <thead>
+            <tr><th>Subject</th><th>Dept</th><th>Year</th><th>By</th><th>Status</th><th>Date</th></tr>
+          </thead>
+          <tbody>
+            {% for p in recent_papers %}
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="pdf-icon-sm"><i class="bi bi-file-earmark-pdf-fill"></i></span>
+                  {{ p.subject_name }}
+                </div>
+              </td>
+              <td><span class="dept-tag">{{ p.department[:8] }}…</span></td>
+              <td><span class="year-tag">{{ p.year }}</span></td>
+              <td class="small text-muted">{{ p.uploaded_by }}</td>
+              <td>
+                {% if p.status == 'approved' %}
+                  <span class="badge bg-success">Approved</span>
+                {% elif p.status == 'rejected' %}
+                  <span class="badge bg-danger">Rejected</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">Pending</span>
+                {% endif %}
+              </td>
+              <td class="small text-muted">{{ p.upload_date[:10] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <div class="empty-state small-empty"><i class="bi bi-inbox"></i><p>No papers yet</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Department stats -->
+  <div class="col-lg-4">
+    <div class="admin-section-card">
+      <div class="admin-section-header"><h3>Papers by Dept (Approved)</h3></div>
+      {% if dept_stats %}
+        {% for stat in dept_stats %}
+        <div class="dept-stat-row">
+          <span class="dept-stat-name">{{ stat.department }}</span>
+          <div class="dept-stat-bar-wrap">
+            <div class="dept-stat-bar"
+                 style="width: {{ ([approved_count, 1]|max and (stat.count / [approved_count,1]|max * 100))|round|int }}%"></div>
+          </div>
+          <span class="dept-stat-count">{{ stat.count }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state small-empty"><i class="bi bi-bar-chart"></i><p>No approved papers yet</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Activity Logs -->
+<div class="row g-4 mt-4">
+  <div class="col-12">
+    <div class="admin-section-card">
+      <div class="admin-section-header">
+        <h3>Recent Student Activity</h3>
+      </div>
+
+      {% if recent_activity %}
+      <div class="table-responsive">
+        <table class="table qp-table mb-0">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Reg No</th>
+              <th>Action</th>
+              <th>Paper ID</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in recent_activity %}
+            <tr>
+              <td><strong>{{ log.student_name }}</strong></td>
+              <td class="text-muted small">{{ log.student_reg }}</td>
+              <td>
+                {% if log.action == "login" %}
+                  <span class="badge bg-primary">Login</span>
+                {% elif log.action == "upload" %}
+                  <span class="badge bg-success">Upload</span>
+                {% elif log.action == "download" %}
+                  <span class="badge bg-info">Download</span>
+                {% elif log.action == "view" %}
+                  <span class="badge bg-secondary">View</span>
+                {% else %}
+                  <span class="badge bg-dark">{{ log.action }}</span>
+                {% endif %}
+              </td>
+              <td class="small text-muted">
+                {{ log.paper_id if log.paper_id else "-" }}
+              </td>
+              <td class="small text-muted">
+                {{ log.timestamp }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <div class="empty-state small-empty">
+          <i class="bi bi-activity"></i>
+          <p>No activity yet</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}

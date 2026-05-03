@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Upload Paper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Upload Question Paper</h1>
+    <p class="page-sub">Share a PDF with the community — only PDF files up to 10 MB</p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="upload-card">
+      <form method="POST" action="{{ url_for('upload') }}"
+            enctype="multipart/form-data" class="qp-form" id="uploadForm">
+
+        <div class="form-group-qp">
+          <label for="subject_name"><i class="bi bi-book"></i> Subject Name</label>
+          <input type="text" class="form-control qp-input" id="subject_name"
+                 name="subject_name" placeholder="e.g. Data Structures and Algorithms"
+                 required />
+        </div>
+
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <div class="form-group-qp">
+              <label for="department"><i class="bi bi-building"></i> Department</label>
+              <select class="form-select qp-select" id="department" name="department" required>
+                <option value="">Choose department…</option>
+                {% for d in departments %}
+                  <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="form-group-qp">
+              <label for="year"><i class="bi bi-calendar3"></i> Academic Year</label>
+              <select class="form-select qp-select" id="year" name="year" required>
+                <option value="">Choose year…</option>
+                {% for y in years %}
+                  <option value="{{ y }}">{{ y }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group-qp">
+          <label><i class="bi bi-file-earmark-pdf"></i> PDF File</label>
+          <div class="dropzone" id="dropzone" onclick="document.getElementById('file').click()">
+            <div class="dropzone-inner" id="dropzoneContent">
+              <i class="bi bi-cloud-arrow-up"></i>
+              <p>Drag & drop your PDF here<br /><span>or click to browse</span></p>
+              <small>PDF only · Max 10 MB</small>
+            </div>
+            <input type="file" id="file" name="file" accept=".pdf"
+                   class="d-none" required onchange="handleFileSelect(this)" />
+          </div>
+        </div>
+
+        <div id="filePreview" class="file-preview d-none">
+          <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
+          <span id="fileName">filename.pdf</span>
+          <span id="fileSize" class="text-muted small"></span>
+          <button type="button" class="btn-remove-file" onclick="removeFile()">
+            <i class="bi bi-x-circle"></i>
+          </button>
+        </div>
+
+        <div class="upload-info-box">
+          <i class="bi bi-info-circle"></i>
+          The file will be uploaded to Cloudinary. You'll see it in the papers list immediately after.
+        </div>
+
+        <button type="submit" class="btn btn-qp-primary w-100" id="submitBtn">
+          <i class="bi bi-cloud-arrow-up me-2"></i>Upload Paper
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const dropzone = document.getElementById('dropzone');
+
+dropzone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropzone.classList.add('drag-over');
+});
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) {
+    const input = document.getElementById('file');
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    input.files = dt.files;
+    handleFileSelect(input);
+  }
+});
+
+function handleFileSelect(input) {
+  const f = input.files[0];
+  if (!f) return;
+  if (!f.name.toLowerCase().endsWith('.pdf')) {
+    alert('Only PDF files are allowed.');
+    input.value = '';
+    return;
+  }
+  if (f.size > 10 * 1024 * 1024) {
+    alert('File size must not exceed 10 MB.');
+    input.value = '';
+    return;
+  }
+  document.getElementById('dropzoneContent').style.opacity = '0.3';
+  document.getElementById('fileName').textContent = f.name;
+  document.getElementById('fileSize').textContent = '(' + (f.size / 1024 / 1024).toFixed(2) + ' MB)';
+  document.getElementById('filePreview').classList.remove('d-none');
+}
+
+function removeFile() {
+  document.getElementById('file').value = '';
+  document.getElementById('filePreview').classList.add('d-none');
+  document.getElementById('dropzoneContent').style.opacity = '1';
+}
+
+document.getElementById('uploadForm').addEventListener('submit', function() {
+  const btn = document.getElementById('submitBtn');
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading…';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}
