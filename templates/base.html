@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}QPapers{% endblock %} — Question Paper Portal</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% if session.get('student_reg') or session.get('is_admin') %}
+<nav class="navbar navbar-expand-lg qp-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="{{ url_for('student_dashboard') if session.student_reg else url_for('admin_dashboard') }}">
+      <span class="brand-icon"><i class="bi bi-journals"></i></span>
+      <span class="brand-text">Q<span class="brand-accent">Papers</span></span>
+    </a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navMain">
+      {% if session.get('student_reg') %}
+      <ul class="navbar-nav me-auto gap-1">
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'student_dashboard' %}active{% endif %}"
+             href="{{ url_for('student_dashboard') }}">
+            <i class="bi bi-grid-1x2"></i> Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'papers' %}active{% endif %}"
+             href="{{ url_for('papers') }}">
+            <i class="bi bi-file-earmark-text"></i> Papers
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'upload' %}active{% endif %}"
+             href="{{ url_for('upload') }}">
+            <i class="bi bi-cloud-arrow-up"></i> Upload
+          </a>
+        </li>
+      </ul>
+      <div class="d-flex align-items-center gap-3">
+        <span class="nav-user">
+          <i class="bi bi-person-circle"></i>
+          {{ session.student_name }}
+          <small class="text-muted">({{ session.student_reg }})</small>
+        </span>
+        <a href="{{ url_for('student_logout') }}" class="btn btn-logout">          <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
+      </div>
+
+      {% elif session.get('is_admin') %}
+      <ul class="navbar-nav me-auto gap-1">
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}"
+             href="{{ url_for('admin_dashboard') }}">
+            <i class="bi bi-speedometer2"></i> Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'admin_papers' %}active{% endif %}"
+             href="{{ url_for('admin_papers') }}">
+            <i class="bi bi-file-earmark-text"></i> All Papers
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'admin_students' %}active{% endif %}"
+             href="{{ url_for('admin_students') }}">
+            <i class="bi bi-people"></i> Students
+          </a>
+        </li>
+      </ul>
+      <div class="d-flex align-items-center gap-3">
+        <span class="nav-user admin-badge">
+          <i class="bi bi-shield-check"></i> Admin
+        </span>
+        <a href="{{ url_for('admin_logout') }}" class="btn btn-logout">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+{% endif %}
+
+<main class="main-content">
+  <div class="container py-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show qp-alert" role="alert">
+            <i class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<footer class="qp-footer">
+  <div class="container text-center">
+    <span><i class="bi bi-journals me-1"></i>QPapers</span>
+    <span class="mx-2 opacity-30">·</span>
+    <span class="opacity-50">College Question Paper Portal</span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
