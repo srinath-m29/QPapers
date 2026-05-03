@@ -1,7 +1,7 @@
 """Run this once to initialise the database."""
 import sqlite3, os
 
-DATABASE = os.path.join(os.path.dirname(__file__), "instance", "qpapers.db")
+DATABASE = os.path.join(os.getcwd(), "instance", "qpapers.db")
 os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
 
 db = sqlite3.connect(DATABASE)
