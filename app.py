@@ -42,7 +42,7 @@ def force_download(paper_id):
     os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
     db = sqlite3.connect(DATABASE)
     db.row_factory = sqlite3.Row
-    paper = db.execute("SELECT * FROM papers WHERE id = ?", (paper_id,)).fetchone()
+    paper = query_db("SELECT * FROM papers WHERE id = ?", (paper_id,)).fetchone()
     db.close()
 
     if not paper:
@@ -156,7 +156,7 @@ def query_db(query, params=(), one=False):
             db.commit()
             return None
     else:
-        cur = db.execute(query, params)
+        cur = query_db(query, params)
         rows = cur.fetchall()
         return (rows[0] if rows else None) if one else rows
 
@@ -169,7 +169,7 @@ def close_db(error):
 def init_db():
     os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
     db = sqlite3.connect(DATABASE)
-    db.executescript("""
+    query_dbscript("""
         CREATE TABLE IF NOT EXISTS papers (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             subject_name TEXT    NOT NULL,
@@ -194,11 +194,11 @@ def init_db():
         -- ────────────────────────────────────────────────────────────────────
     """)
     # Safe migration for old schemas
-    cols = [row[1] for row in db.execute("PRAGMA table_info(papers)").fetchall()]
+    cols = [row[1] for row in query_db("PRAGMA table_info(papers)").fetchall()]
     if "status" not in cols:
-        db.execute("ALTER TABLE papers ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'")
+        query_db("ALTER TABLE papers ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'")
     if "public_id" not in cols:
-        db.execute("ALTER TABLE papers ADD COLUMN public_id TEXT NOT NULL DEFAULT ''")
+        query_db("ALTER TABLE papers ADD COLUMN public_id TEXT NOT NULL DEFAULT ''")
     db.commit()
     db.close()
     print("Database initialised.")
@@ -210,7 +210,7 @@ def log_activity(student_reg, student_name, action, paper_id=None):
     try:
         os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
         db = sqlite3.connect(DATABASE)
-        db.execute(
+        query_db(
             """INSERT INTO activity_logs (student_reg, student_name, action, paper_id, timestamp)
                VALUES (?, ?, ?, ?, ?)""",
             (student_reg, student_name, action, paper_id,
@@ -300,12 +300,12 @@ def student_logout():
 @student_required
 def student_dashboard():
     db = get_db()
-    recent = db.execute(
+    recent = query_db(
         "SELECT * FROM papers WHERE status='approved' ORDER BY upload_date DESC LIMIT 6"
     ).fetchall()
-    total = db.execute("SELECT COUNT(*) as c FROM papers WHERE status='approved'").fetchone()["c"]
-    depts = db.execute("SELECT COUNT(DISTINCT department) as c FROM papers WHERE status='approved'").fetchone()["c"]
-    my_pending = db.execute(
+    total = query_db("SELECT COUNT(*) as c FROM papers WHERE status='approved'").fetchone()["c"]
+    depts = query_db("SELECT COUNT(DISTINCT department) as c FROM papers WHERE status='approved'").fetchone()["c"]
+    my_pending = query_db(
         "SELECT COUNT(*) as c FROM papers WHERE uploaded_by=? AND status='pending'",
         (session["student_reg"],)
     ).fetchone()["c"]
@@ -335,7 +335,7 @@ def papers():
         query += " AND subject_name LIKE ?"; params.append(f"%{subject}%")
     query += " ORDER BY upload_date DESC"
 
-    all_papers = db.execute(query, params).fetchall()
+    all_papers = query_db(query, params).fetchall()
     return render_template(
         "papers.html",
         papers=all_papers, departments=DEPARTMENTS, years=YEARS,
@@ -386,7 +386,7 @@ def upload():
             return render_template("upload.html", departments=DEPARTMENTS, years=YEARS)
 
         db = get_db()
-        db.execute(
+        query_db(
             """INSERT INTO papers
                (subject_name, department, year, file_url, public_id, uploaded_by, status, upload_date)
                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)""",
@@ -440,7 +440,7 @@ def admin_upload():
             return render_template("admin_upload.html", departments=DEPARTMENTS, years=YEARS)
 
         db = get_db()
-        db.execute(
+        query_db(
             """INSERT INTO papers
                (subject_name, department, year, file_url, public_id, uploaded_by, status, upload_date)
                VALUES (?, ?, ?, ?, ?, ?, 'approved', ?)""",
@@ -463,7 +463,7 @@ def admin_upload():
 def view_paper(paper_id):
     """Log a 'view' event then redirect to the paper's Cloudinary URL."""
     db    = get_db()
-    paper = db.execute("SELECT * FROM papers WHERE id = ? AND status = 'approved'",
+    paper = query_db("SELECT * FROM papers WHERE id = ? AND status = 'approved'",
                        (paper_id,)).fetchone()
     if not paper:
         flash("Paper not found or not yet approved.", "danger")
@@ -506,18 +506,18 @@ def admin_logout():
 @admin_required
 def admin_dashboard():
     db = get_db()
-    total_papers   = db.execute("SELECT COUNT(*) as c FROM papers").fetchone()["c"]
-    pending_count  = db.execute("SELECT COUNT(*) as c FROM papers WHERE status='pending'").fetchone()["c"]
-    approved_count = db.execute("SELECT COUNT(*) as c FROM papers WHERE status='approved'").fetchone()["c"]
-    rejected_count = db.execute("SELECT COUNT(*) as c FROM papers WHERE status='rejected'").fetchone()["c"]
+    total_papers   = query_db("SELECT COUNT(*) as c FROM papers").fetchone()["c"]
+    pending_count  = query_db("SELECT COUNT(*) as c FROM papers WHERE status='pending'").fetchone()["c"]
+    approved_count = query_db("SELECT COUNT(*) as c FROM papers WHERE status='approved'").fetchone()["c"]
+    rejected_count = query_db("SELECT COUNT(*) as c FROM papers WHERE status='rejected'").fetchone()["c"]
     total_students = len(STUDENT_REGISTRY)
-    recent_papers  = db.execute("SELECT * FROM papers ORDER BY upload_date DESC LIMIT 10").fetchall()
-    dept_stats     = db.execute(
+    recent_papers  = query_db("SELECT * FROM papers ORDER BY upload_date DESC LIMIT 10").fetchall()
+    dept_stats     = query_db(
         "SELECT department, COUNT(*) as count FROM papers WHERE status='approved' "
         "GROUP BY department ORDER BY count DESC"
     ).fetchall()
     # --- Activity Tracking Added ---
-    recent_activity = db.execute(
+    recent_activity = query_db(
         "SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT 10"
     ).fetchall()
 # --------------------------------
@@ -537,11 +537,11 @@ def admin_papers():
     db     = get_db()
     status = request.args.get("status", "")
     if status in ("pending", "approved", "rejected"):
-        all_papers = db.execute(
+        all_papers = query_db(
             "SELECT * FROM papers WHERE status=? ORDER BY upload_date DESC", (status,)
         ).fetchall()
     else:
-        all_papers = db.execute("SELECT * FROM papers ORDER BY upload_date DESC").fetchall()
+        all_papers = query_db("SELECT * FROM papers ORDER BY upload_date DESC").fetchall()
     return render_template("admin_papers.html", papers=all_papers, selected_status=status)
 
 
@@ -576,7 +576,7 @@ def reject_paper(paper_id):
 @admin_required
 def delete_paper(paper_id):
     db    = get_db()
-    paper = db.execute("SELECT * FROM papers WHERE id=?", (paper_id,)).fetchone()
+    paper = query_db("SELECT * FROM papers WHERE id=?", (paper_id,)).fetchone()
     if not paper:
         flash("Paper not found.", "danger")
         return redirect(url_for("admin_papers"))
@@ -585,7 +585,7 @@ def delete_paper(paper_id):
             cloudinary.uploader.destroy(paper["public_id"], resource_type="raw")
         except Exception:
             pass
-    db.execute("DELETE FROM papers WHERE id=?", (paper_id,))
+    query_db("DELETE FROM papers WHERE id=?", (paper_id,))
     db.commit()
     flash("Paper deleted.", "success")
     return redirect(request.referrer or url_for("admin_papers"))
@@ -594,7 +594,7 @@ def delete_paper(paper_id):
 @admin_required
 def clear_activity():
     db = get_db()
-    db.execute("DELETE FROM activity_logs")
+    query_db("DELETE FROM activity_logs")
     db.commit()
     flash("All activity logs cleared!", "success")
     return redirect(url_for("admin_dashboard"))
@@ -620,7 +620,7 @@ def admin_activity_logs():
         query += " WHERE " + " AND ".join(filters)
     query += " ORDER BY timestamp DESC"
 
-    logs = db.execute(query, params).fetchall()
+    logs = query_db(query, params).fetchall()
     return render_template(
         "admin_activity.html",
         logs=logs,
