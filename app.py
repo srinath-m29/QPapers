@@ -10,10 +10,13 @@ import cloudinary.uploader
 import cloudinary.utils
 import pandas as pd
 from dotenv import load_dotenv
-from flask import (Flask, flash, g, jsonify, redirect, render_template,
-                   request, session, url_for)
+from flask import (Flask, flash, g, jsonify, redirect, render_template, request, session, url_for)
+import psycopg2
 
 load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+USE_POSTGRES = DATABASE_URL is not None
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
@@ -129,11 +132,33 @@ YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"]
 
 def get_db():
     if "db" not in g:
-        os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA journal_mode=WAL")
+        if USE_POSTGRES:
+            g.db = psycopg2.connect(DATABASE_URL)
+        else:
+            DATABASE = os.path.join(os.getcwd(), "instance", "qpapers.db")
+            os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
+            g.db = sqlite3.connect(DATABASE)
+            g.db.row_factory = sqlite3.Row
     return g.db
+
+def query_db(query, params=(), one=False):
+    db = get_db()
+
+    if USE_POSTGRES:
+        cur = db.cursor()
+        cur.execute(query, params)
+
+        if query.strip().lower().startswith("select"):
+            columns = [desc[0] for desc in cur.description]
+            rows = [dict(zip(columns, r)) for r in cur.fetchall()]
+            return rows[0] if one and rows else (rows if not one else None)
+        else:
+            db.commit()
+            return None
+    else:
+        cur = db.execute(query, params)
+        rows = cur.fetchall()
+        return (rows[0] if rows else None) if one else rows
 
 @app.teardown_appcontext
 def close_db(error):
