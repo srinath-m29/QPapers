@@ -1,8 +1,8 @@
 flask>=3.0
-flask-bcrypt
 cloudinary
 python-dotenv
 pandas
 openpyxl
 gunicorn
 requests
+psycopg2-binary

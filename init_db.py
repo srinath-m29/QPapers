@@ -1,28 +1,46 @@
 """Run this once to initialise the database."""
-import sqlite3, os
+import os
+import psycopg2
+from dotenv import load_dotenv
 
-DATABASE = os.path.join(os.getcwd(), "instance", "qpapers.db")
-os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
+load_dotenv()
 
-db = sqlite3.connect(DATABASE)
-db.executescript("""
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:password@localhost:5432/qpapers_db"
+)
+
+conn = psycopg2.connect(DATABASE_URL)
+cur  = conn.cursor()
+
+cur.execute("""
     CREATE TABLE IF NOT EXISTS papers (
-        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-        subject_name TEXT    NOT NULL,
-        department   TEXT    NOT NULL,
-        year         TEXT    NOT NULL,
-        file_url     TEXT    NOT NULL,
-        public_id    TEXT    NOT NULL DEFAULT '',
-        uploaded_by  TEXT    NOT NULL,
-        status       TEXT    NOT NULL DEFAULT 'pending',
-        upload_date  TEXT    NOT NULL DEFAULT (datetime('now'))
-    );
+        id           SERIAL PRIMARY KEY,
+        subject_name TEXT      NOT NULL,
+        department   TEXT      NOT NULL,
+        year         TEXT      NOT NULL,
+        file_url     TEXT      NOT NULL,
+        public_id    TEXT      NOT NULL DEFAULT '',
+        uploaded_by  TEXT      NOT NULL,
+        status       TEXT      NOT NULL DEFAULT 'pending',
+        upload_date  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
 """)
-cols = [r[1] for r in db.execute("PRAGMA table_info(papers)").fetchall()]
-if "status" not in cols:
-    db.execute("ALTER TABLE papers ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'")
-if "public_id" not in cols:
-    db.execute("ALTER TABLE papers ADD COLUMN public_id TEXT NOT NULL DEFAULT ''")
-db.commit()
-db.close()
-print("Database ready.")
+
+# FIX: removed the trailing comma after the last column.
+# PostgreSQL treats a trailing comma as a syntax error; SQLite silently ignored it.
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS activity_logs (
+        id           SERIAL PRIMARY KEY,
+        student_reg  TEXT      NOT NULL,
+        student_name TEXT      NOT NULL,
+        action       TEXT      NOT NULL,
+        paper_id     INTEGER,
+        timestamp    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+conn.commit()
+cur.close()
+conn.close()
+print("PostgreSQL initialised successfully.")
