@@ -117,7 +117,7 @@
           <span><i class="bi bi-calendar3"></i> {{ p.year }}</span>
           <span><i class="bi bi-person"></i> {{ p.uploaded_by }}</span>
         </div>
-        <div class="paper-date text-muted small">{{ p.upload_date[:10] }}</div>
+        <div class="paper-date text-muted small">{{ p.upload_date.strftime('%Y-%m-%d') }}</div>
       </div>
       <div class="paper-card-footer">
         <a href="{{ p.file_url }}" target="_blank" class="btn btn-qp-sm">
