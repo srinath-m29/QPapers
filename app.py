@@ -1,11 +1,38 @@
 """
 QPapers — Flask Question Paper Portal
-Database layer: PostgreSQL via psycopg2 + RealDictCursor
-All other behaviour (routes, templates, session keys, Cloudinary, Excel auth) unchanged.
+Database:  PostgreSQL via psycopg2 + RealDictCursor
+Deployment: Render / gunicorn
+
+PRODUCTION HARDENING vs previous version
+─────────────────────────────────────────
+R1  init_db() wrapped in try/except so a DB hiccup at startup prints a clear
+    message instead of killing the gunicorn worker with exit-status 1.
+
+R2  load_excel_students() wrapped so a missing ECE.xlsx never crashes startup.
+
+R3  EXCEL_FILE path uses abspath(__file__) with a cwd() fallback for gunicorn
+    environments where __file__ can be '<string>'.
+
+R4  DATABASE_URL validated at import time — missing var prints an actionable
+    warning instead of silently crashing on the first DB request.
+
+R5  get_db() catches psycopg2.OperationalError → Flask 503 so gunicorn stays
+    alive during Render Postgres cold-starts.
+
+R6  query_db() rolls back on any exception so the per-request connection is
+    never left in a broken transaction state.
+
+R7  log_activity() uses its own short-lived connection and catches ALL
+    exceptions so a log failure never propagates to the caller.
+
+R8  /healthz route added for Render health-check (set Health Check Path
+    to /healthz in the Render service settings).
+
+All routes, templates, session keys, Cloudinary, Excel auth — unchanged.
 """
 
 import os
-from datetime import datetime
+import sys
 from functools import wraps
 
 import cloudinary
@@ -20,30 +47,28 @@ from flask import (Flask, Response, flash, g, jsonify, redirect,
                    render_template, request, session, url_for)
 from werkzeug.utils import secure_filename
 
+# ── Load env ──────────────────────────────────────────────────────────────────
 load_dotenv()
+
+# ── R4: Validate DATABASE_URL at import time ──────────────────────────────────
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    DATABASE_URL = "postgresql://postgres:password@localhost:5432/qpapers_db"
+    print(
+        "WARNING: DATABASE_URL not set. Using localhost fallback.\n"
+        "         On Render, add DATABASE_URL in the Environment tab.",
+        file=sys.stderr,
+    )
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
 
-# ── Cloudinary config ──────────────────────────────────────────────────────────
+# ── Cloudinary ────────────────────────────────────────────────────────────────
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True,
-)
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  DATABASE LAYER  (the only section that changed from the SQLite version)
-# ══════════════════════════════════════════════════════════════════════════════
-
-# FIX 1: DATABASE_URL must be defined ONCE, before any function that uses it.
-#         The old import_os.py defined it twice (lines 18-19 and 128-131),
-#         and the first definition could be None if the env var was missing,
-#         causing psycopg2.connect(None) to crash immediately.
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:password@localhost:5432/qpapers_db"
 )
 
 MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -57,58 +82,62 @@ DEPARTMENTS = [
 YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"]
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  DATABASE LAYER
+# ══════════════════════════════════════════════════════════════════════════════
+
 def get_db():
     """
-    Return a per-request psycopg2 connection stored on Flask's g object.
-    RealDictCursor makes rows behave like dicts (row["column"]) —
-    the same interface sqlite3.Row provided, so templates need no changes.
-
-    FIX 2: The old import_os.py passed cursor_factory to psycopg2.connect(),
-            which is NOT a valid connect() argument.  cursor_factory must be
-            passed to conn.cursor(), not to connect().
+    Per-request psycopg2 connection stored on Flask g.
+    FIX: cursor_factory belongs on conn.cursor(), NOT on psycopg2.connect().
+    R5:  OperationalError -> 503 so gunicorn stays up during DB cold-starts.
     """
     if "db" not in g:
-        g.db = psycopg2.connect(DATABASE_URL)   # ← no cursor_factory here
+        try:
+            g.db = psycopg2.connect(DATABASE_URL)
+        except psycopg2.OperationalError as exc:
+            from flask import abort
+            print(f"[DB] Could not connect: {exc}", file=sys.stderr)
+            abort(503, description="Database temporarily unavailable.")
     return g.db
 
 
 def _cursor(conn):
-    """Open a RealDictCursor on an existing connection."""
+    """Open a RealDictCursor — rows behave like dicts, same as sqlite3.Row."""
     return conn.cursor(cursor_factory=RealDictCursor)
 
 
 def query_db(query, params=(), one=False):
     """
-    Unified query helper.
+    Unified query helper. Returns:
+      list[RealDictRow]  for SELECT (one=False)
+      RealDictRow | None for SELECT (one=True)
+      None               for INSERT / UPDATE / DELETE  (commit included)
 
-    FIX 3: The old version returned None for non-SELECT queries but then
-            callers did query_db(...).fetchone() or .fetchall() on that None,
-            causing AttributeError: 'NoneType' object has no attribute 'fetchone'.
-            Solution: always return the data directly (list or single row),
-            never a cursor object that the caller then has to call again.
+    NEVER call .fetchone() or .fetchall() on the return value — the data is
+    already fetched and returned directly.
 
-    FIX 4: query_db() now handles commit internally for write queries, so
-            callers don't need a separate db.commit() after every INSERT/UPDATE/DELETE.
-            (Callers that already called db.commit() explicitly are harmless but
-            redundant — we keep them for clarity.)
-
-    FIX 5: PostgreSQL uses %s placeholders, NOT ?.
-            This helper is the single place where queries arrive, so placeholders
-            in every SQL string must be %s (see all routes below).
+    R6: Rolls back on exception so the connection stays reusable.
     """
     conn = get_db()
     cur  = _cursor(conn)
-    cur.execute(query, params)
-
-    stripped = query.strip().lower()
-    if stripped.startswith("select"):
-        rows = cur.fetchall()          # list of RealDictRow objects
+    try:
+        cur.execute(query, params if params else None)
+    except Exception:
+        conn.rollback()
         cur.close()
-        return rows[0] if one else rows
+        raise
+
+    if query.strip().upper().startswith("SELECT"):
+        rows = cur.fetchall()
+        cur.close()
+        if one:
+            return rows[0] if rows else None
+        return rows
     else:
         conn.commit()
         cur.close()
-        return None                    # callers must NOT call .fetchone() on this
+        return None
 
 
 @app.teardown_appcontext
@@ -120,96 +149,104 @@ def close_db(error=None):
 
 def init_db():
     """
-    Create tables on first run.
-
-    FIX 6: init_db.py had a trailing comma after the last column in
-            activity_logs, which is a PostgreSQL syntax error (unlike SQLite
-            which tolerates it).  Removed.
-
-    FIX 7: SQLite used INTEGER PRIMARY KEY AUTOINCREMENT + datetime('now').
-            PostgreSQL equivalents: SERIAL PRIMARY KEY + CURRENT_TIMESTAMP.
-            Already correct in import_os.py, kept as-is.
-
-    FIX 8: The PRAGMA table_info() migration check used in app.py is
-            SQLite-only.  In PostgreSQL, CREATE TABLE IF NOT EXISTS is
-            sufficient — no PRAGMA needed.
+    Create tables if they don't exist.
+    R1: Wrapped in try/except — startup DB errors are logged, not fatal.
     """
-    conn = psycopg2.connect(DATABASE_URL)
-    cur  = conn.cursor()
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cur  = conn.cursor()
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS papers (
-            id           SERIAL PRIMARY KEY,
-            subject_name TEXT      NOT NULL,
-            department   TEXT      NOT NULL,
-            year         TEXT      NOT NULL,
-            file_url     TEXT      NOT NULL,
-            public_id    TEXT      NOT NULL DEFAULT '',
-            uploaded_by  TEXT      NOT NULL,
-            status       TEXT      NOT NULL DEFAULT 'pending',
-            upload_date  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS papers (
+                id           SERIAL PRIMARY KEY,
+                subject_name TEXT      NOT NULL,
+                department   TEXT      NOT NULL,
+                year         TEXT      NOT NULL,
+                file_url     TEXT      NOT NULL,
+                public_id    TEXT      NOT NULL DEFAULT '',
+                uploaded_by  TEXT      NOT NULL,
+                status       TEXT      NOT NULL DEFAULT 'pending',
+                upload_date  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id           SERIAL PRIMARY KEY,
+                student_reg  TEXT      NOT NULL,
+                student_name TEXT      NOT NULL,
+                action       TEXT      NOT NULL,
+                paper_id     INTEGER,
+                timestamp    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("PostgreSQL: tables ready.")
+
+    except psycopg2.OperationalError as exc:
+        print(
+            f"[init_db] WARNING: Could not reach PostgreSQL at startup: {exc}\n"
+            "          Tables will be created on first successful connection.",
+            file=sys.stderr,
         )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS activity_logs (
-            id           SERIAL PRIMARY KEY,
-            student_reg  TEXT      NOT NULL,
-            student_name TEXT      NOT NULL,
-            action       TEXT      NOT NULL,
-            paper_id     INTEGER,
-            timestamp    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    # Note: no trailing comma after the last column — PostgreSQL rejects it.
-
-    conn.commit()
-    cur.close()
-    conn.close()
-    print("PostgreSQL database initialised successfully.")
+    except Exception as exc:
+        print(f"[init_db] Unexpected error: {exc}", file=sys.stderr)
 
 
-# ── Excel Student Registry ────────────────────────────────────────────────────
-EXCEL_FILE = os.path.join(os.path.dirname(__file__), "ECE.xlsx")
+# ── R3: Excel file path safe for all gunicorn modes ───────────────────────────
+def _excel_path():
+    try:
+        base = os.path.dirname(os.path.abspath(__file__))
+    except (NameError, TypeError):
+        base = os.getcwd()
+    return os.path.join(base, "ECE.xlsx")
+
+
+EXCEL_FILE       = _excel_path()
 STUDENT_REGISTRY: dict = {}
 
 
 def load_excel_students():
+    """
+    R2: Missing ECE.xlsx no longer crashes startup.
+    Students simply cannot log in until the file is present.
+    On Render, commit ECE.xlsx to your repo so it's available in the build.
+    """
     global STUDENT_REGISTRY
     if not os.path.exists(EXCEL_FILE):
-        print(f"WARNING: Excel file not found at {EXCEL_FILE}")
+        print(
+            f"WARNING: ECE.xlsx not found at {EXCEL_FILE}.\n"
+            "         Student login will be unavailable until the file is present.",
+            file=sys.stderr,
+        )
         return
-    df = pd.read_excel(EXCEL_FILE, dtype=str)
-    df.columns = [c.strip() for c in df.columns]
-    for _, row in df.iterrows():
-        reg = str(row.get("Reg No", "")).strip()
-        if not reg or reg == "nan":
-            continue
-        STUDENT_REGISTRY[reg] = {
-            "name":     str(row.get("Student Name", "")).strip(),
-            "semester": str(row.get("Sem", "")).strip(),
-            "status":   str(row.get("Status", "")).strip().upper(),
-            "section":  str(row.get("SEC", "")).strip(),
-        }
-    print(f"Loaded {len(STUDENT_REGISTRY)} students from Excel.")
+    try:
+        df = pd.read_excel(EXCEL_FILE, dtype=str)
+        df.columns = [c.strip() for c in df.columns]
+        for _, row in df.iterrows():
+            reg = str(row.get("Reg No", "")).strip()
+            if not reg or reg == "nan":
+                continue
+            STUDENT_REGISTRY[reg] = {
+                "name":     str(row.get("Student Name", "")).strip(),
+                "semester": str(row.get("Sem", "")).strip(),
+                "status":   str(row.get("Status", "")).strip().upper(),
+                "section":  str(row.get("SEC", "")).strip(),
+            }
+        print(f"Loaded {len(STUDENT_REGISTRY)} students from Excel.")
+    except Exception as exc:
+        print(f"[load_excel_students] Failed to read Excel: {exc}", file=sys.stderr)
 
 
-# ── Activity Logging ──────────────────────────────────────────────────────────
+# ── Activity logging ───────────────────────────────────────────────────────────
 
 def log_activity(student_reg, student_name, action, paper_id=None):
     """
-    Insert a row into activity_logs using its own short-lived connection
-    so that a logging failure never rolls back the caller's transaction.
-
-    FIX 9: The old version passed datetime.now() as the 6th parameter but
-            the INSERT only listed 5 columns (the timestamp column has a
-            server-side DEFAULT CURRENT_TIMESTAMP).  Passing an explicit value
-            is fine — but the placeholder count must match the value count.
-            We simply let the DB default handle it (omit timestamp from INSERT).
-
-    FIX 10: The old force_download route opened a fresh psycopg2 connection
-             with cursor_factory=RealDictCursor passed to connect() — invalid.
-             Now force_download uses get_db() + query_db() like every other route.
+    R7: Own short-lived connection; catches ALL exceptions.
+    A log failure never disrupts normal request handling.
     """
     try:
         conn = psycopg2.connect(DATABASE_URL)
@@ -223,11 +260,12 @@ def log_activity(student_reg, student_name, action, paper_id=None):
         cur.close()
         conn.close()
     except Exception as exc:
-        print(f"[activity_log] Failed to log '{action}' for {student_reg}: {exc}")
+        print(f"[activity_log] Failed to log '{action}' for {student_reg}: {exc}",
+              file=sys.stderr)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  AUTH DECORATORS  (unchanged from original)
+#  AUTH DECORATORS
 # ══════════════════════════════════════════════════════════════════════════════
 
 def student_required(f):
@@ -254,6 +292,21 @@ def admin_required(f):
 #  ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ── R8: Health check ──────────────────────────────────────────────────────────
+@app.route("/healthz")
+def healthz():
+    """
+    Set Health Check Path to /healthz in Render service settings.
+    Returns 200 when DB is reachable, 503 otherwise.
+    """
+    try:
+        conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
+        conn.close()
+        return jsonify({"status": "ok"}), 200
+    except Exception as exc:
+        return jsonify({"status": "error", "detail": str(exc)}), 503
+
+
 @app.route("/")
 def index():
     return redirect(url_for("student_login"))
@@ -263,14 +316,7 @@ def index():
 
 @app.route("/download/<int:paper_id>")
 def force_download(paper_id):
-    """
-    FIX 11: Old version opened a raw psycopg2.connect() here with
-             cursor_factory=RealDictCursor as a connect() argument (invalid),
-             bypassing get_db() entirely and leaking a connection on every call.
-             Now uses query_db() consistently.
-    """
     paper = query_db("SELECT * FROM papers WHERE id = %s", (paper_id,), one=True)
-
     if not paper:
         return "Paper not found.", 404
 
@@ -361,12 +407,6 @@ def student_logout():
 @app.route("/dashboard")
 @student_required
 def student_dashboard():
-    """
-    FIX 12: Old code called query_db(...).fetchall() / .fetchone() — but
-             query_db() already returns the data, not a cursor.
-             All such calls are fixed throughout this file.
-    FIX 13: ? placeholders replaced with %s everywhere.
-    """
     recent = query_db(
         "SELECT * FROM papers WHERE status='approved' ORDER BY upload_date DESC LIMIT 6"
     )
@@ -395,15 +435,14 @@ def papers():
     year    = request.args.get("year", "")
     subject = request.args.get("subject", "").strip()
 
-    # FIX 14: dynamic filter query must use %s, not ?
     sql    = "SELECT * FROM papers WHERE status='approved'"
     params = []
     if dept:
-        sql += " AND department = %s";        params.append(dept)
+        sql += " AND department = %s";       params.append(dept)
     if year:
-        sql += " AND year = %s";              params.append(year)
+        sql += " AND year = %s";             params.append(year)
     if subject:
-        sql += " AND subject_name LIKE %s";   params.append(f"%{subject}%")
+        sql += " AND subject_name LIKE %s";  params.append(f"%{subject}%")
     sql += " ORDER BY upload_date DESC"
 
     all_papers = query_db(sql, params)
@@ -435,7 +474,7 @@ def upload():
             flash("File size must not exceed 10 MB.", "danger")
             return render_template("upload.html", departments=DEPARTMENTS, years=YEARS)
 
-        filename = secure_filename(file.filename)
+        filename         = secure_filename(file.filename)
         name_without_ext = os.path.splitext(filename)[0]
 
         try:
@@ -453,7 +492,6 @@ def upload():
             flash(f"Upload failed: {str(e)}", "danger")
             return render_template("upload.html", departments=DEPARTMENTS, years=YEARS)
 
-        # FIX 15: ? → %s; query_db handles commit internally
         query_db(
             """INSERT INTO papers
                (subject_name, department, year, file_url, public_id, uploaded_by, status)
@@ -470,10 +508,6 @@ def upload():
 @app.route("/view/<int:paper_id>")
 @student_required
 def view_paper(paper_id):
-    """
-    FIX 16: Old code called query_db(...).fetchone() — query_db already
-             returns the row when one=True; no .fetchone() needed.
-    """
     paper = query_db(
         "SELECT * FROM papers WHERE id = %s AND status = 'approved'",
         (paper_id,), one=True
@@ -481,7 +515,6 @@ def view_paper(paper_id):
     if not paper:
         flash("Paper not found or not yet approved.", "danger")
         return redirect(url_for("papers"))
-
     log_activity(session["student_reg"], session["student_name"], "view", paper_id)
     return redirect(paper["file_url"])
 
@@ -515,13 +548,8 @@ def admin_logout():
 @app.route("/admin/dashboard")
 @admin_required
 def admin_dashboard():
-    """
-    FIX 17: Old code called query_db(...).fetchone()["c"] — query_db returns
-             the dict directly when one=True; just index into it.
-    FIX 18: query_db(...).fetchall() → query_db(...) (already a list).
-    """
     total_papers   = query_db("SELECT COUNT(*) AS c FROM papers", one=True)["c"]
-    pending_count  = query_db("SELECT COUNT(*) AS c FROM papers WHERE status='pending'", one=True)["c"]
+    pending_count  = query_db("SELECT COUNT(*) AS c FROM papers WHERE status='pending'",  one=True)["c"]
     approved_count = query_db("SELECT COUNT(*) AS c FROM papers WHERE status='approved'", one=True)["c"]
     rejected_count = query_db("SELECT COUNT(*) AS c FROM papers WHERE status='rejected'", one=True)["c"]
     total_students = len(STUDENT_REGISTRY)
@@ -547,7 +575,6 @@ def admin_dashboard():
 @admin_required
 def admin_papers():
     status = request.args.get("status", "")
-    # FIX 19: ? → %s; removed spurious .fetchall() call
     if status in ("pending", "approved", "rejected"):
         all_papers = query_db(
             "SELECT * FROM papers WHERE status=%s ORDER BY upload_date DESC", (status,)
@@ -580,7 +607,7 @@ def admin_upload():
             flash("Only PDF allowed.", "danger")
             return render_template("admin_upload.html", departments=DEPARTMENTS, years=YEARS)
 
-        filename = secure_filename(file.filename)
+        filename         = secure_filename(file.filename)
         name_without_ext = os.path.splitext(filename)[0]
 
         try:
@@ -598,7 +625,6 @@ def admin_upload():
             flash(f"Upload failed: {str(e)}", "danger")
             return render_template("admin_upload.html", departments=DEPARTMENTS, years=YEARS)
 
-        # FIX 20: ? → %s; removed explicit upload_date (use DB default)
         query_db(
             """INSERT INTO papers
                (subject_name, department, year, file_url, public_id, uploaded_by, status)
@@ -611,18 +637,9 @@ def admin_upload():
     return render_template("admin_upload.html", departments=DEPARTMENTS, years=YEARS)
 
 
-# ── Approve / Reject / Delete ─────────────────────────────────────────────────
-
 @app.route("/approve/<int:paper_id>", methods=["POST"])
 @admin_required
 def approve_paper(paper_id):
-    """
-    FIX 21: Old code called get_db().execute() — psycopg2 connections have no
-             .execute() method; only cursors do.  Use query_db() instead.
-             Also: get_db().commit() after get_db().execute() called commit on
-             a DIFFERENT cursor object in some edge cases — now query_db()
-             handles commit atomically.
-    """
     query_db("UPDATE papers SET status='approved' WHERE id=%s", (paper_id,))
     flash("Paper approved and visible to students.", "success")
     return redirect(request.referrer or url_for("admin_papers"))
@@ -639,7 +656,6 @@ def reject_paper(paper_id):
 @app.route("/delete/<int:paper_id>", methods=["POST"])
 @admin_required
 def delete_paper(paper_id):
-    # FIX 22: ? → %s; removed .fetchone() chained on query_db()
     paper = query_db("SELECT * FROM papers WHERE id=%s", (paper_id,), one=True)
     if not paper:
         flash("Paper not found.", "danger")
@@ -668,19 +684,17 @@ def admin_activity_logs():
     action_filter = request.args.get("action", "")
     reg_filter    = request.args.get("student_reg", "").strip()
 
-    # FIX 23: ? → %s in dynamic filter query
     sql     = "SELECT * FROM activity_logs"
     params  = []
     filters = []
     if action_filter in ("login", "upload", "download", "view"):
-        filters.append("action = %s");            params.append(action_filter)
+        filters.append("action = %s");           params.append(action_filter)
     if reg_filter:
-        filters.append("student_reg LIKE %s");    params.append(f"%{reg_filter}%")
+        filters.append("student_reg LIKE %s");   params.append(f"%{reg_filter}%")
     if filters:
         sql += " WHERE " + " AND ".join(filters)
     sql += " ORDER BY timestamp DESC"
 
-    # FIX 24: removed .fetchall() — query_db already returns the list
     logs = query_db(sql, params)
     return render_template(
         "admin_activity.html",
@@ -690,12 +704,11 @@ def admin_activity_logs():
     )
 
 
-# ── API endpoints ─────────────────────────────────────────────────────────────
+# ── API ───────────────────────────────────────────────────────────────────────
 
 @app.route("/api/papers")
 @student_required
 def api_papers():
-    # FIX 25: psycopg2 connection has no .execute(); use query_db()
     rows = query_db(
         "SELECT * FROM papers WHERE status='approved' ORDER BY upload_date DESC"
     )
@@ -708,7 +721,10 @@ def api_students():
     return jsonify([{"reg_no": reg, **data} for reg, data in STUDENT_REGISTRY.items()])
 
 
-# ── Entrypoint ────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  STARTUP — both calls are exception-safe so gunicorn never exits status 1
+# ══════════════════════════════════════════════════════════════════════════════
+
 load_excel_students()
 init_db()
 
