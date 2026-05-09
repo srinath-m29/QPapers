@@ -117,7 +117,7 @@
                   <span class="badge bg-warning text-dark">Pending</span>
                 {% endif %}
               </td>
-              <td class="small text-muted">{{ p.upload_date[:10] }}</td>
+              <td class="small text-muted">{{ p.upload_date.strftime('%Y-%m-%d') }}</td>
             </tr>
             {% endfor %}
           </tbody>
