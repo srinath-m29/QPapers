@@ -131,7 +131,7 @@
     </div>
 
     <div class="mb-3 text-muted small">
-      {{ p.upload_date[:10] }}
+      {{ p.upload_date.strftime('%Y-%m-%d') }}
     </div>
 
     <div class="d-flex gap-2">
