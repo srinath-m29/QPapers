@@ -51,7 +51,7 @@
         <td><span class="dept-tag">{{ p.department }}</span></td>
         <td><span class="year-tag">{{ p.year }}</span></td>
         <td class="small text-muted">{{ p.uploaded_by }}</td>
-        <td class="small text-muted">{{ p.upload_date[:10] }}</td>
+        <td class="small text-muted">{{ p.upload_date.strftime('%Y-%m-%d') }}</td>
         <td>
           {% if p.status == 'approved' %}
             <span class="badge bg-success">Approved</span>
@@ -118,7 +118,7 @@
     <div class="text-muted small mb-1">{{ p.department }}</div>
     <div class="text-muted small mb-1">{{ p.year }}</div>
     <div class="text-muted small mb-1">By: {{ p.uploaded_by }}</div>
-    <div class="text-muted small mb-2">{{ p.upload_date[:10] }}</div>
+    <div class="text-muted small mb-2">{{ p.upload_date.strftime('%Y-%m-%d') }}</div>
 
     <!-- Actions -->
     <div class="d-flex flex-wrap gap-2">
