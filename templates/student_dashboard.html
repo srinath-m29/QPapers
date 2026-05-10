@@ -120,7 +120,10 @@
         <div class="paper-date text-muted small">{{ p.upload_date.strftime('%Y-%m-%d') }}</div>
       </div>
       <div class="paper-card-footer">
-        <a href="{{ p.file_url }}" target="_blank" class="btn btn-qp-sm">
+        <a href="https://docs.google.com/gview?embedded=true&url={{ p.file_url }}"
+          target="_blank"
+          class="btn btn-qp-sm"
+          title="View PDF">
           <i class="bi bi-eye me-1"></i>View
         </a>
         <a href="{{ url_for('force_download', paper_id=p.id) }}" class="btn btn-qp-sm btn-outline-sm">

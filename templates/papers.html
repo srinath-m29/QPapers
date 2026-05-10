@@ -96,7 +96,10 @@
         <td>
           <div class="d-flex gap-2">
             <!-- View: open the exact Cloudinary URL in a new tab — always works -->
-            <a href="{{ p.file_url }}" target="_blank" class="btn btn-qp-sm" title="View PDF">
+            <a href="https://docs.google.com/gview?embedded=true&url={{ p.file_url }}"
+              target="_blank"
+              class="btn btn-qp-sm"
+              title="View PDF">
               <i class="bi bi-eye"></i> View
             </a>
 
@@ -135,7 +138,10 @@
     </div>
 
     <div class="d-flex gap-2">
-      <a href="{{ p.file_url }}" target="_blank" class="btn btn-dark btn-sm w-50">
+      <a href="https://docs.google.com/gview?embedded=true&url={{ p.file_url }}"
+        target="_blank"
+        class="btn btn-qp-sm"
+        title="View PDF">
         <i class="bi bi-eye"></i> View
       </a>
 
