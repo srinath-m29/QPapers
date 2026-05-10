@@ -788,17 +788,26 @@ h1, h2, h3, h4, h5 {
 .stat-card:nth-child(3) { animation-delay: 0.12s; }
 .stat-card:nth-child(4) { animation-delay: 0.18s; }
 
-/* Fix hidden white/light text issue */
+/* ===== FIX TABLE HEADER ===== */
 
-.text-muted {
-    color: #6b7a99 !important;
-    opacity: 1 !important;
+.qp-table thead,
+.qp-table thead tr {
+    background: #0f1628 !important;
 }
 
-.qp-table td {
+.qp-table thead th {
+    background: #0f1628 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+/* Body text */
+.qp-table tbody td {
     color: #1a2540 !important;
 }
 
-.qp-table tbody td.small {
+/* Mobile cards */
+.card,
+.card * {
     color: #1a2540 !important;
 }
