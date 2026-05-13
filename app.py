@@ -559,7 +559,7 @@ def admin_dashboard():
         "GROUP BY department ORDER BY count DESC"
     )
     recent_activity = query_db(
-        "SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT 20"
+        "SELECT * FROM activity_logs ORDER BY timestamp DESC"
     )
     return render_template(
         "admin_dashboard.html",
