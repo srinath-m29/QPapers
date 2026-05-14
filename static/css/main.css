@@ -806,8 +806,87 @@ h1, h2, h3, h4, h5 {
     color: #1a2540 !important;
 }
 
-/* Mobile cards */
-.card,
-.card * {
-    color: #1a2540 !important;
+/* Mobile card normal text */
+.card {
+    color: #1a2540;
+}
+
+/* Dark badge text */
+.badge.bg-dark {
+    color: white !important;
+}
+
+/* View button */
+.btn-qp-sm {
+    color: white !important;
+}
+
+.btn-qp-sm i {
+    color: white !important;
+}
+
+/* Delete button */
+.btn-danger {
+    color: white !important;
+}
+
+/* Success badge */
+.badge.bg-success {
+    color: white !important;
+}
+
+/* Danger badge */
+.badge.bg-danger {
+    color: white !important;
+}
+
+/* Mobile fixes */
+@media (max-width: 768px) {
+
+    .btn-qp-sm {
+        color: white !important;
+    }
+
+    .btn-qp-sm i {
+        color: white !important;
+    }
+
+    .badge.bg-dark {
+        color: white !important;
+    }
+
+}
+/* Download button */
+.btn-outline-dark,
+.btn-outline-dark i {
+    color: #0f1628 !important;
+}
+
+/* Hover */
+.btn-outline-dark:hover,
+.btn-outline-dark:hover i {
+    color: white !important;
+}
+/* Mobile navbar toggle icon */
+.navbar-toggler {
+    border-color: rgba(255,255,255,.2) !important;
+}
+
+.navbar-toggler-icon {
+    filter: brightness(0) invert(1);
+}
+
+/* Dashboard download button */
+.btn-outline-sm {
+    color: #0f1628 !important;
+}
+
+.btn-outline-sm i {
+    color: #0f1628 !important;
+}
+
+/* Hover */
+.btn-outline-sm:hover,
+.btn-outline-sm:hover i {
+    color: white !important;
 }
