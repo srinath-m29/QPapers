@@ -145,12 +145,26 @@
   {% for p in papers %}
   <div class="card mb-3 p-3 shadow-sm">
     
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <strong>{{ p.subject_name }}</strong>
-      <span class="badge bg-primary">{{ p.year }}</span>
-      <span class="badge bg-dark ms-1">
-        {{ p.paper_type }}
-      </span>
+    <div class="d-flex flex-column gap-2 mb-2">
+
+      <!-- Subject -->
+      <strong class="text-break">
+        {{ p.subject_name }}
+      </strong>
+
+      <!-- Year + Type -->
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        
+        <span class="badge bg-primary">
+          {{ p.year }}
+        </span>
+
+        <span class="badge bg-dark">
+          {{ p.paper_type }}
+        </span>
+
+      </div>
+
     </div>
 
     <div class="mb-2 text-muted small">

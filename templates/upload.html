@@ -18,7 +18,7 @@
         <div class="form-group-qp">
           <label for="subject_name"><i class="bi bi-book"></i> Subject Name</label>
           <input type="text" class="form-control qp-input" id="subject_name"
-                 name="subject_name" placeholder="e.g. Data Structures and Algorithms"
+                 name="subject_name" placeholder="e.g. U23PPR105_SEM_1_CIE_1_Y25"
                  required />
         </div>
 
@@ -45,8 +45,28 @@
               </select>
             </div>
           </div>
-        </div>
+          <div class="col-sm-6">
+            <div class="form-group-qp">
+              
+              <label for="paper_type">
+                <i class="bi bi-file-earmark-text"></i>
+                Paper Type
+              </label>
 
+              <select class="form-select qp-select"
+                      id="paper_type"
+                      name="paper_type"
+                      required>
+
+                <option value="CIE" selected>CIE</option>
+                <option value="SEM">SEM</option>
+
+              </select>
+
+            </div>
+          </div>
+        </div>
+        
         <div class="form-group-qp">
           <label><i class="bi bi-file-earmark-pdf"></i> PDF File</label>
           <div class="dropzone" id="dropzone" onclick="document.getElementById('file').click()">
@@ -71,7 +91,7 @@
 
         <div class="upload-info-box">
           <i class="bi bi-info-circle"></i>
-          The file will be uploaded to Cloudinary. You'll see it in the papers list immediately after.
+          The file will be uploaded. You'll see it in the papers after ADMIN's approval.
         </div>
 
         <button type="submit" class="btn btn-qp-primary w-100" id="submitBtn">
