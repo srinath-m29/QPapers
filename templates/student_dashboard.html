@@ -90,9 +90,25 @@
       <label>Subject</label>
       <input type="text" name="subject" class="form-control qp-input" placeholder="Search subject…" />
     </div>
-    <button type="submit" class="btn btn-qp-primary">
-      <i class="bi bi-search me-1"></i>Search
-    </button>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-qp-primary">
+        <i class="bi bi-search me-1"></i>Search
+      </button>
+
+      <button type="submit"
+              name="paper_type"
+              value="CIE"
+              class="btn btn-outline-dark">
+        CIE
+      </button>
+
+      <button type="submit"
+              name="paper_type"
+              value="SEM"
+              class="btn btn-outline-dark">
+        SEM
+      </button>
+    </div>
   </form>
 </div>
 

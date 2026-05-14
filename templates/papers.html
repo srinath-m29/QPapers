@@ -44,6 +44,26 @@
         <i class="bi bi-filter me-1"></i>Filter
       </button>
     </div>
+
+    <div class="col-auto d-flex gap-2">
+      <a href="{{ url_for('papers',
+          department=selected_dept,
+          year=selected_year,
+          subject=search_subject,
+          paper_type='CIE') }}"
+        class="btn {% if selected_type == 'CIE' %}btn-qp-primary{% else %}btn-outline-dark{% endif %}">
+        CIE
+      </a>
+
+      <a href="{{ url_for('papers',
+          department=selected_dept,
+          year=selected_year,
+          subject=search_subject,
+          paper_type='SEM') }}"
+        class="btn {% if selected_type == 'SEM' %}btn-qp-primary{% else %}btn-outline-dark{% endif %}">
+        SEM
+      </a>
+    </div>
     {% if selected_dept or selected_year or search_subject %}
     <div class="col-auto">
       <a href="{{ url_for('papers') }}" class="btn btn-qp-outline">
@@ -90,7 +110,13 @@
           </div>
         </td>
         <td><span class="dept-tag">{{ p.department }}</span></td>
-        <td><span class="year-tag">{{ p.year }}</span></td>
+        <td>
+          <span class="year-tag">{{ p.year }}</span>
+
+          <span class="badge bg-dark ms-1">
+            {{ p.paper_type }}
+          </span>
+        </td>
         <td class="text-muted small">{{ p.uploaded_by }}</td>
         <td class="text-muted small">{{ p.upload_date.strftime('%Y-%m-%d') }}</td>
         <td>
@@ -98,8 +124,7 @@
             <!-- View: open the exact Cloudinary URL in a new tab — always works -->
             <a href="https://docs.google.com/gview?embedded=true&url={{ p.file_url }}"
               target="_blank"
-              class="btn btn-qp-sm"
-              title="View PDF">
+              class="btn btn-qp-sm">
               <i class="bi bi-eye"></i> View
             </a>
 
@@ -123,6 +148,9 @@
     <div class="d-flex justify-content-between align-items-center mb-2">
       <strong>{{ p.subject_name }}</strong>
       <span class="badge bg-primary">{{ p.year }}</span>
+      <span class="badge bg-dark ms-1">
+        {{ p.paper_type }}
+      </span>
     </div>
 
     <div class="mb-2 text-muted small">
@@ -140,8 +168,7 @@
     <div class="d-flex gap-2">
       <a href="https://docs.google.com/gview?embedded=true&url={{ p.file_url }}"
         target="_blank"
-        class="btn btn-qp-sm"
-        title="View PDF">
+        class="btn btn-qp-sm">
         <i class="bi bi-eye"></i> View
       </a>
 

@@ -19,7 +19,11 @@
     <option value="{{ y }}">{{ y }}</option>
     {% endfor %}
   </select>
-
+  <select name="paper_type" class="form-control mb-2" required>
+    <option value="">Select Paper Type</option>
+    <option value="CIE" selected>CIE</option>
+    <option value="SEM">SEM</option>
+  </select>
   <input type="file" name="file" class="form-control mb-3" required>
 
   <button class="btn btn-success">Upload</button>

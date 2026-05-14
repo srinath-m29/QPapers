@@ -49,7 +49,13 @@
           </div>
         </td>
         <td><span class="dept-tag">{{ p.department }}</span></td>
-        <td><span class="year-tag">{{ p.year }}</span></td>
+        <td>
+          <span class="year-tag">{{ p.year }}</span>
+
+          <span class="badge bg-dark ms-1">
+            {{ p.paper_type }}
+          </span>
+        </td>
         <td class="small text-muted">{{ p.uploaded_by }}</td>
         <td class="small text-muted">{{ p.upload_date.strftime('%Y-%m-%d') }}</td>
         <td>
@@ -65,9 +71,9 @@
           <div class="d-flex gap-1 flex-wrap">
             <!-- View -->
             <a href="https://docs.google.com/gview?embedded=true&url={{ p.file_url }}"
-               target="_blank"
-               class="btn btn-qp-sm"
-               title="View PDF">
+              target="_blank"
+              class="btn btn-qp-sm"
+              title="View PDF">
               <i class="bi bi-eye"></i>
             </a>
             <!-- Approve -->
@@ -119,7 +125,13 @@
 
     <!-- Details -->
     <div class="text-muted small mb-1">{{ p.department }}</div>
-    <div class="text-muted small mb-1">{{ p.year }}</div>
+    <div class="text-muted small mb-1">
+      {{ p.year }}
+
+      <span class="badge bg-dark ms-1">
+        {{ p.paper_type }}
+      </span>
+    </div>
     <div class="text-muted small mb-1">By: {{ p.uploaded_by }}</div>
     <div class="text-muted small mb-2">{{ p.upload_date.strftime('%Y-%m-%d') }}</div>
 
@@ -128,9 +140,9 @@
 
       <!-- View -->
       <a href="https://docs.google.com/gview?embedded=true&url={{ p.file_url }}"
-         target="_blank"
-         class="btn btn-qp-sm"
-         title="View PDF">
+        target="_blank"
+        class="btn btn-qp-sm"
+        title="View PDF">
         <i class="bi bi-eye"></i>
       </a>
 
