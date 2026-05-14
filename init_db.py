@@ -19,6 +19,7 @@ cur.execute("""
         subject_name TEXT      NOT NULL,
         department   TEXT      NOT NULL,
         year         TEXT      NOT NULL,
+        paper_type   TEXT      NOT NULL DEFAULT 'CIE',
         file_url     TEXT      NOT NULL,
         public_id    TEXT      NOT NULL DEFAULT '',
         uploaded_by  TEXT      NOT NULL,
@@ -27,8 +28,7 @@ cur.execute("""
     )
 """)
 
-# FIX: removed the trailing comma after the last column.
-# PostgreSQL treats a trailing comma as a syntax error; SQLite silently ignored it.
+
 cur.execute("""
     CREATE TABLE IF NOT EXISTS activity_logs (
         id           SERIAL PRIMARY KEY,

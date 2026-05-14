@@ -1,40 +1,8 @@
-"""
-QPapers — Flask Question Paper Portal
-Database:  PostgreSQL via psycopg2 + RealDictCursor
-Deployment: Render / gunicorn
 
-PRODUCTION HARDENING vs previous version
-─────────────────────────────────────────
-R1  init_db() wrapped in try/except so a DB hiccup at startup prints a clear
-    message instead of killing the gunicorn worker with exit-status 1.
-
-R2  load_excel_students() wrapped so a missing ECE.xlsx never crashes startup.
-
-R3  EXCEL_FILE path uses abspath(__file__) with a cwd() fallback for gunicorn
-    environments where __file__ can be '<string>'.
-
-R4  DATABASE_URL validated at import time — missing var prints an actionable
-    warning instead of silently crashing on the first DB request.
-
-R5  get_db() catches psycopg2.OperationalError → Flask 503 so gunicorn stays
-    alive during Render Postgres cold-starts.
-
-R6  query_db() rolls back on any exception so the per-request connection is
-    never left in a broken transaction state.
-
-R7  log_activity() uses its own short-lived connection and catches ALL
-    exceptions so a log failure never propagates to the caller.
-
-R8  /healthz route added for Render health-check (set Health Check Path
-    to /healthz in the Render service settings).
-
-All routes, templates, session keys, Cloudinary, Excel auth — unchanged.
-"""
 
 import os
 import sys
 from functools import wraps
-
 import cloudinary
 import cloudinary.uploader
 import cloudinary.utils
@@ -50,7 +18,7 @@ from werkzeug.utils import secure_filename
 # ── Load env ──────────────────────────────────────────────────────────────────
 load_dotenv()
 
-# ── R4: Validate DATABASE_URL at import time ──────────────────────────────────
+# ── DATABASE_URL at import time ───────────────────────────────────────────────
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     DATABASE_URL = "postgresql://postgres:password@localhost:5432/qpapers_db"
@@ -75,9 +43,9 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 
 DEPARTMENTS = [
     "Computer Science", "Information Technology",
-    "Electronics & Communication", "Electrical Engineering",
+    "Electronics & Communication", "Electrical & Electronics Engineering",
     "Mechanical Engineering", "Civil Engineering",
-    "Biotechnology", "Mathematics", "Physics", "Chemistry",
+    "Bio Medical Engineering", "Computer Science & Engineering", "Fashion Technology",
 ]
 YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"]
 
@@ -87,11 +55,7 @@ YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"]
 # ══════════════════════════════════════════════════════════════════════════════
 
 def get_db():
-    """
-    Per-request psycopg2 connection stored on Flask g.
-    FIX: cursor_factory belongs on conn.cursor(), NOT on psycopg2.connect().
-    R5:  OperationalError -> 503 so gunicorn stays up during DB cold-starts.
-    """
+    
     if "db" not in g:
         try:
             g.db = psycopg2.connect(DATABASE_URL)
@@ -108,17 +72,7 @@ def _cursor(conn):
 
 
 def query_db(query, params=(), one=False):
-    """
-    Unified query helper. Returns:
-      list[RealDictRow]  for SELECT (one=False)
-      RealDictRow | None for SELECT (one=True)
-      None               for INSERT / UPDATE / DELETE  (commit included)
-
-    NEVER call .fetchone() or .fetchall() on the return value — the data is
-    already fetched and returned directly.
-
-    R6: Rolls back on exception so the connection stays reusable.
-    """
+    
     conn = get_db()
     cur  = _cursor(conn)
     try:
@@ -162,6 +116,7 @@ def init_db():
                 subject_name TEXT      NOT NULL,
                 department   TEXT      NOT NULL,
                 year         TEXT      NOT NULL,
+                paper_type   TEXT      NOT NULL DEFAULT 'CIE',
                 file_url     TEXT      NOT NULL,
                 public_id    TEXT      NOT NULL DEFAULT '',
                 uploaded_by  TEXT      NOT NULL,
@@ -210,11 +165,7 @@ STUDENT_REGISTRY: dict = {}
 
 
 def load_excel_students():
-    """
-    R2: Missing ECE.xlsx no longer crashes startup.
-    Students simply cannot log in until the file is present.
-    On Render, commit ECE.xlsx to your repo so it's available in the build.
-    """
+    
     global STUDENT_REGISTRY
     if not os.path.exists(EXCEL_FILE):
         print(
@@ -434,7 +385,7 @@ def papers():
     dept    = request.args.get("department", "")
     year    = request.args.get("year", "")
     subject = request.args.get("subject", "").strip()
-
+    paper_type = request.args.get("paper_type", "")
     sql    = "SELECT * FROM papers WHERE status='approved'"
     params = []
     if dept:
@@ -443,6 +394,8 @@ def papers():
         sql += " AND year = %s";             params.append(year)
     if subject:
         sql += " AND subject_name LIKE %s";  params.append(f"%{subject}%")
+    if paper_type:
+        sql += " AND paper_type = %s";       params.append(paper_type)
     sql += " ORDER BY upload_date DESC"
 
     all_papers = query_db(sql, params)
@@ -450,7 +403,8 @@ def papers():
         "papers.html",
         papers=all_papers, departments=DEPARTMENTS, years=YEARS,
         selected_dept=dept, selected_year=year, search_subject=subject,
-    )
+        selected_paper_type=paper_type
+        )
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -460,9 +414,10 @@ def upload():
         subject = request.form.get("subject_name", "").strip()
         dept    = request.form.get("department", "").strip()
         year    = request.form.get("year", "").strip()
+        paper_type = request.form.get("paper_type", "").strip()
         file    = request.files.get("file")
 
-        if not all([subject, dept, year, file]):
+        if not all([subject, dept, year, paper_type, file]):
             flash("All fields and a file are required.", "danger")
             return render_template("upload.html", departments=DEPARTMENTS, years=YEARS)
         if not file.filename.lower().endswith(".pdf"):
@@ -494,9 +449,9 @@ def upload():
 
         query_db(
             """INSERT INTO papers
-               (subject_name, department, year, file_url, public_id, uploaded_by, status)
-               VALUES (%s, %s, %s, %s, %s, %s, 'pending')""",
-            (subject, dept, year, file_url, public_id, session["student_reg"]),
+               (subject_name, department, year, paper_type, file_url, public_id, uploaded_by, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending')""",
+            (subject, dept, year, paper_type, file_url, public_id, session["student_reg"]),
         )
         log_activity(session["student_reg"], session["student_name"], "upload")
         flash("Paper uploaded! It is pending admin approval.", "success")
@@ -598,9 +553,10 @@ def admin_upload():
         subject = request.form.get("subject_name", "").strip()
         dept    = request.form.get("department", "").strip()
         year    = request.form.get("year", "").strip()
+        paper_type = request.form.get("paper_type", "").strip()
         file    = request.files.get("file")
 
-        if not all([subject, dept, year, file]):
+        if not all([subject, dept, year, paper_type, file]):
             flash("All fields required.", "danger")
             return render_template("admin_upload.html", departments=DEPARTMENTS, years=YEARS)
         if not file.filename.lower().endswith(".pdf"):
@@ -627,9 +583,9 @@ def admin_upload():
 
         query_db(
             """INSERT INTO papers
-               (subject_name, department, year, file_url, public_id, uploaded_by, status)
-               VALUES (%s, %s, %s, %s, %s, 'ADMIN', 'approved')""",
-            (subject, dept, year, file_url, public_id),
+               (subject_name, department, year, paper_type, file_url, public_id, uploaded_by, status)
+               VALUES (%s, %s, %s, %s, %s, %s, 'ADMIN', 'approved')""",
+            (subject, dept, year, paper_type, file_url, public_id),
         )
         flash("Paper uploaded and approved!", "success")
         return redirect(url_for("admin_dashboard"))
