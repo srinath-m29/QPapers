@@ -1,89 +1,1235 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Student Login — QPapers</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500&display=swap" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Student Login — QPapers</title>
+<meta name="description" content="QPapers Student Portal — sign in with your register number" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
+
+<style>
+/* =====================================================
+   1. CSS VARIABLES / DESIGN TOKENS
+===================================================== */
+:root{
+  --c-primary:#F5A623;
+  --c-primary-dark:#d98e10;
+  --c-primary-light:#ffcf73;
+  --c-navy:#111827;
+  --c-navy-soft:#1c2533;
+  --c-bg:#F8FAFC;
+  --c-card:#ffffff;
+  --c-text:#111827;
+  --c-text-muted:#6b7280;
+  --c-border:#e5e7eb;
+  --c-success:#16a34a;
+  --c-danger:#dc2626;
+
+  --radius-sm:8px;
+  --radius-md:14px;
+  --radius-lg:22px;
+  --radius-pill:999px;
+
+  --shadow-sm:0 2px 8px rgba(17,24,39,0.06);
+  --shadow-md:0 12px 30px rgba(17,24,39,0.10);
+  --shadow-lg:0 24px 60px rgba(17,24,39,0.16);
+  --shadow-glow:0 0 0 4px rgba(245,166,35,0.15);
+
+  --ease:cubic-bezier(.4,0,.2,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+
+  --font-display:'Syne', sans-serif;
+  --font-body:'DM Sans', sans-serif;
+}
+
+/* =====================================================
+   2. RESET / BASE
+===================================================== */
+*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+html{ scroll-behavior:smooth; }
+body{
+  font-family:var(--font-body);
+  background:var(--c-bg);
+  color:var(--c-text);
+  min-height:100vh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+img,svg{ display:block; max-width:100%; }
+button{ font-family:inherit; cursor:pointer; border:none; background:none; }
+a{ text-decoration:none; color:inherit; }
+input{ font-family:inherit; }
+
+:focus-visible{
+  outline:2px solid var(--c-primary);
+  outline-offset:2px;
+  border-radius:4px;
+}
+
+.sr-only{
+  position:absolute; width:1px; height:1px;
+  padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+
+/* =====================================================
+   3. PAGE LOADER
+===================================================== */
+#qp-loader{
+  position:fixed; inset:0; z-index:9999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:22px;
+  background:var(--c-navy);
+  transition:opacity .6s var(--ease), filter .6s var(--ease), visibility .6s;
+}
+#qp-loader.is-hidden{
+  opacity:0;
+  filter:blur(12px);
+  visibility:hidden;
+  pointer-events:none;
+}
+.loader-logo{
+  display:flex; align-items:center; gap:10px;
+  animation:loaderPulse 1.6s ease-in-out infinite;
+}
+.loader-logo .logo-icon{
+  width:46px; height:46px; border-radius:12px;
+  background:var(--c-primary);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 30px rgba(245,166,35,.55);
+}
+.loader-logo .logo-icon svg{ width:24px; height:24px; }
+.loader-logo .logo-text{
+  font-family:var(--font-display);
+  font-weight:800;
+  font-size:28px;
+  color:#fff;
+  letter-spacing:.5px;
+}
+.loader-logo .logo-text span{ color:var(--c-primary); }
+@keyframes loaderPulse{
+  0%,100%{ transform:scale(1); }
+  50%{ transform:scale(1.06); }
+}
+.loader-bar-track{
+  width:200px; height:4px; border-radius:var(--radius-pill);
+  background:rgba(255,255,255,.12);
+  overflow:hidden;
+}
+.loader-bar-fill{
+  height:100%; width:0%;
+  background:linear-gradient(90deg,var(--c-primary),var(--c-primary-light));
+  border-radius:var(--radius-pill);
+  animation:loaderFill 1.9s var(--ease) forwards;
+}
+@keyframes loaderFill{
+  0%{ width:0%; }
+  60%{ width:70%; }
+  100%{ width:100%; }
+}
+.loader-caption{
+  font-size:13px; color:rgba(255,255,255,.55);
+  letter-spacing:.06em; text-transform:uppercase;
+}
+
+/* =====================================================
+   4. LAYOUT SHELL
+===================================================== */
+.auth-shell{
+  display:flex;
+  min-height:100vh;
+  width:100%;
+  opacity:0;
+  transition:opacity .7s var(--ease);
+}
+.auth-shell.is-ready{ opacity:1; }
+
+/* ---- Left: form panel ---- */
+.auth-panel{
+  flex:1 1 50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--c-card);
+  padding:48px 24px;
+  position:relative;
+  z-index:2;
+}
+.auth-card{
+  width:100%;
+  max-width:400px;
+  opacity:0;
+  transform:translateY(28px);
+  transition:opacity .7s var(--ease), transform .7s var(--ease-spring);
+  transition-delay:.15s;
+}
+.auth-shell.is-ready .auth-card{ opacity:1; transform:translateY(0); }
+
+/* logo */
+.auth-logo{
+  display:inline-flex; align-items:center; gap:10px;
+  margin-bottom:34px;
+  cursor:default;
+}
+.auth-logo .logo-icon{
+  width:38px; height:38px; border-radius:10px;
+  background:var(--c-primary);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--shadow-sm);
+  transform:scale(.6); opacity:0;
+  transition:transform .6s var(--ease-spring), opacity .5s var(--ease);
+  transition-delay:.3s;
+}
+.auth-shell.is-ready .auth-logo .logo-icon{ transform:scale(1); opacity:1; }
+.auth-logo .logo-icon svg{ width:20px; height:20px; }
+.auth-logo .logo-text{
+  font-family:var(--font-display);
+  font-weight:800;
+  font-size:22px;
+  color:var(--c-navy);
+  opacity:0;
+  transition:opacity .5s var(--ease);
+  transition-delay:.4s;
+}
+.auth-shell.is-ready .auth-logo .logo-text{ opacity:1; }
+.auth-logo .logo-text span{ color:var(--c-primary); }
+.auth-logo:hover .logo-icon{ transform:rotate(-6deg) scale(1.05); }
+
+/* badge */
+.form-badge{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:600;
+  color:var(--c-primary-dark);
+  background:rgba(245,166,35,.12);
+  border:1px solid rgba(245,166,35,.3);
+  padding:6px 12px;
+  border-radius:var(--radius-pill);
+  margin-bottom:16px;
+  opacity:0;
+  transition:opacity .5s var(--ease);
+  transition-delay:.5s;
+}
+.auth-shell.is-ready .form-badge{ opacity:1; }
+.form-badge svg{ width:13px; height:13px; }
+
+/* heading */
+.form-header h1{
+  font-family:var(--font-display);
+  font-weight:800;
+  font-size:30px;
+  color:var(--c-navy);
+  letter-spacing:-.02em;
+  margin-bottom:8px;
+  overflow:hidden;
+}
+.form-header h1 .char{
+  display:inline-block;
+  opacity:0;
+  transform:translateY(10px);
+  animation:charIn .5s var(--ease) forwards;
+}
+@keyframes charIn{
+  to{ opacity:1; transform:translateY(0); }
+}
+.form-header p{
+  font-size:14.5px;
+  color:var(--c-text-muted);
+  margin-bottom:30px;
+  opacity:0;
+  transition:opacity .5s var(--ease);
+  transition-delay:.7s;
+}
+.auth-shell.is-ready .form-header p{ opacity:1; }
+
+/* flash messages (Flask categories: success / danger / warning / info) */
+.flash-stack{
+  display:flex; flex-direction:column; gap:8px;
+  margin-bottom:18px;
+}
+.flash-msg{
+  font-size:13.5px;
+  font-weight:500;
+  padding:11px 14px;
+  border-radius:var(--radius-sm);
+  border:1px solid transparent;
+  animation:flashIn .35s var(--ease);
+}
+@keyframes flashIn{
+  from{ opacity:0; transform:translateY(-6px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+.flash-success{ background:rgba(22,163,74,.1); color:#15803d; border-color:rgba(22,163,74,.25); }
+.flash-danger{ background:rgba(220,38,38,.08); color:#b91c1c; border-color:rgba(220,38,38,.22); }
+.flash-warning{ background:rgba(245,166,35,.12); color:var(--c-primary-dark); border-color:rgba(245,166,35,.3); }
+.flash-info{ background:rgba(59,130,246,.08); color:#1d4ed8; border-color:rgba(59,130,246,.22); }
+
+/* form */
+.qp-form{ display:flex; flex-direction:column; gap:20px; }
+.form-group-qp{
+  position:relative;
+  opacity:0;
+  transform:translateY(14px);
+  transition:opacity .5s var(--ease), transform .5s var(--ease);
+}
+.auth-shell.is-ready .form-group-qp{ opacity:1; transform:translateY(0); }
+.form-group-qp:nth-of-type(1){ transition-delay:.55s; }
+.form-group-qp:nth-of-type(2){ transition-delay:.65s; }
+
+.input-field-wrap{ position:relative; }
+.qp-input{
+  width:100%;
+  height:52px;
+  padding:0 16px 0 44px;
+  font-size:15px;
+  color:var(--c-text);
+  background:#fff;
+  border:1.5px solid var(--c-border);
+  border-radius:var(--radius-md);
+  transition:border-color .25s var(--ease), box-shadow .25s var(--ease);
+}
+.qp-input::placeholder{ color:transparent; }
+.qp-input:focus{
+  border-color:var(--c-primary);
+  box-shadow:var(--shadow-glow);
+}
+.input-icon{
+  position:absolute; left:15px; top:50%;
+  transform:translateY(-50%);
+  width:18px; height:18px;
+  color:var(--c-text-muted);
+  transition:color .25s var(--ease), transform .25s var(--ease);
+  pointer-events:none;
+}
+.qp-input:focus ~ .input-icon{ color:var(--c-primary); transform:translateY(-50%) scale(1.08); }
+
+.floating-label{
+  position:absolute;
+  left:44px; top:50%;
+  transform:translateY(-50%);
+  font-size:15px;
+  color:var(--c-text-muted);
+  background:transparent;
+  pointer-events:none;
+  transition:all .22s var(--ease);
+  z-index:1;
+}
+/* Float up on focus, on JS-detected value, AND on browser autofill —
+   :not(:placeholder-shown) is a pure-CSS fallback that catches autofilled
+   values even when no JS "input" event fires, which is what caused the
+   label/value overlap.
+   NOTE: uses the general sibling selector "~" rather than the adjacent
+   sibling selector "+", because an icon SVG sits between the input and
+   the label in the DOM. With "+" these rules never matched at all (the
+   label was never the immediate next sibling), so the label stayed
+   permanently stuck in its centered, un-floated position and overlapped
+   any value the field held — this was the actual root cause of the
+   overlap, not autofill timing. */
+.qp-input:focus ~ .floating-label,
+.qp-input.has-value ~ .floating-label,
+.qp-input:not(:placeholder-shown) ~ .floating-label,
+.qp-input:-webkit-autofill ~ .floating-label{
+  top:0;
+  left:38px;
+  font-size:11.5px;
+  font-weight:600;
+  padding:0 6px;
+  background:#fff;
+  color:var(--c-primary-dark);
+  transform:translateY(-50%);
+}
+
+/* Chrome/Safari autofill fires a CSS animation we can hook into as an
+   extra detection signal (animationstart listener in JS below), since
+   autofill timing can otherwise race the label transition. */
+@keyframes onAutoFillStart{ from{} to{} }
+@keyframes onAutoFillCancel{ from{} to{} }
+.qp-input:-webkit-autofill{
+  animation-name:onAutoFillStart;
+  animation-duration:1ms;
+}
+.qp-input:not(:-webkit-autofill){
+  animation-name:onAutoFillCancel;
+  animation-duration:1ms;
+}
+
+.pw-toggle{
+  position:absolute; right:14px; top:50%;
+  transform:translateY(-50%);
+  width:30px; height:30px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--c-text-muted);
+  transition:color .2s var(--ease), background .2s var(--ease);
+}
+.pw-toggle:hover{ color:var(--c-navy); background:rgba(17,24,39,.06); }
+.pw-toggle svg{ width:18px; height:18px; transition:transform .35s var(--ease-spring); }
+.pw-toggle.is-active svg{ transform:rotateY(180deg); }
+
+.form-hint{
+  display:block;
+  font-size:12.5px;
+  color:var(--c-text-muted);
+  margin-top:7px;
+  padding-left:2px;
+}
+
+/* shake / success / error states */
+.form-group-qp.shake .qp-input{ animation:shakeX .4s var(--ease); border-color:var(--c-danger); }
+@keyframes shakeX{
+  0%,100%{ transform:translateX(0); }
+  20%{ transform:translateX(-7px); }
+  40%{ transform:translateX(6px); }
+  60%{ transform:translateX(-4px); }
+  80%{ transform:translateX(3px); }
+}
+.form-group-qp.is-success .qp-input{ border-color:var(--c-success); }
+.field-msg{
+  font-size:12.5px; margin-top:6px; padding-left:2px;
+  color:var(--c-danger);
+  display:none;
+}
+.form-group-qp.has-error .field-msg{ display:block; }
+.form-group-qp.has-error .qp-input{ border-color:var(--c-danger); }
+
+/* row: remember + forgot */
+.form-row-between{
+  display:flex; align-items:center; justify-content:space-between;
+  font-size:13.5px;
+  opacity:0; transform:translateY(10px);
+  transition:opacity .5s var(--ease), transform .5s var(--ease);
+  transition-delay:.75s;
+}
+.auth-shell.is-ready .form-row-between{ opacity:1; transform:translateY(0); }
+
+.remember-check{
+  display:flex; align-items:center; gap:8px;
+  color:var(--c-text-muted);
+  cursor:pointer;
+  user-select:none;
+}
+.remember-check input{
+  position:absolute; opacity:0; width:18px; height:18px; cursor:pointer;
+}
+.check-box{
+  width:18px; height:18px; border-radius:5px;
+  border:1.5px solid var(--c-border);
+  display:flex; align-items:center; justify-content:center;
+  transition:background .2s var(--ease), border-color .2s var(--ease), transform .15s var(--ease);
+  flex-shrink:0;
+}
+.check-box svg{
+  width:11px; height:11px; color:#fff;
+  opacity:0; transform:scale(.4);
+  transition:opacity .15s var(--ease), transform .15s var(--ease-spring);
+}
+.remember-check input:checked ~ .check-box{
+  background:var(--c-primary); border-color:var(--c-primary);
+}
+.remember-check input:checked ~ .check-box svg{ opacity:1; transform:scale(1); }
+.remember-check input:active ~ .check-box{ transform:scale(.9); }
+.remember-check:hover .check-box{ border-color:var(--c-primary); }
+
+.forgot-link{
+  color:var(--c-primary-dark);
+  font-weight:600;
+  position:relative;
+}
+.forgot-link::after{
+  content:''; position:absolute; left:0; bottom:-2px;
+  width:0; height:1.5px; background:var(--c-primary-dark);
+  transition:width .25s var(--ease);
+}
+.forgot-link:hover::after{ width:100%; }
+
+/* submit button */
+.btn-qp-primary{
+  position:relative;
+  width:100%;
+  height:52px;
+  margin-top:6px;
+  border-radius:var(--radius-md);
+  font-size:15.5px;
+  font-weight:700;
+  color:#1a1305;
+  background:linear-gradient(135deg,var(--c-primary),var(--c-primary-light));
+  background-size:160% 160%;
+  background-position:0% 50%;
+  display:flex; align-items:center; justify-content:center;
+  gap:8px;
+  overflow:hidden;
+  box-shadow:0 10px 24px rgba(245,166,35,.35);
+  transition:transform .25s var(--ease), box-shadow .25s var(--ease), background-position .6s var(--ease);
+  opacity:0; transform:translateY(14px) scale(.97);
+  transition:opacity .5s var(--ease), transform .4s var(--ease-spring);
+}
+.auth-shell.is-ready .btn-qp-primary{ opacity:1; transform:translateY(0) scale(1); }
+.btn-qp-primary:hover{
+  transform:translateY(-2px);
+  box-shadow:0 14px 30px rgba(245,166,35,.45);
+  background-position:100% 50%;
+}
+.btn-qp-primary:active{ transform:translateY(0) scale(.98); }
+.btn-qp-primary:disabled{ opacity:.7; cursor:not-allowed; transform:none; }
+
+.btn-qp-primary .btn-label,
+.btn-qp-primary .btn-spinner,
+.btn-qp-primary .btn-check{
+  display:flex; align-items:center; gap:8px;
+  transition:opacity .2s var(--ease), transform .2s var(--ease);
+}
+.btn-qp-primary .btn-spinner,
+.btn-qp-primary .btn-check{
+  position:absolute; opacity:0; transform:scale(.6);
+}
+.btn-qp-primary.is-loading .btn-label{ opacity:0; transform:scale(.6); }
+.btn-qp-primary.is-loading .btn-spinner{ opacity:1; transform:scale(1); }
+.btn-qp-primary.is-success .btn-spinner{ opacity:0; }
+.btn-qp-primary.is-success .btn-check{ opacity:1; transform:scale(1); }
+
+.spinner-ring{
+  width:20px; height:20px;
+  border:2.5px solid rgba(26,19,5,.25);
+  border-top-color:#1a1305;
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+.ripple{
+  position:absolute;
+  border-radius:50%;
+  background:rgba(255,255,255,.5);
+  transform:scale(0);
+  animation:rippleAnim .6s var(--ease) forwards;
+  pointer-events:none;
+}
+@keyframes rippleAnim{
+  to{ transform:scale(2.6); opacity:0; }
+}
+
+/* divider */
+.auth-divider{
+  display:flex; align-items:center; gap:12px;
+  margin:26px 0 18px;
+  font-size:12.5px;
+  color:var(--c-text-muted);
+  opacity:0;
+  transition:opacity .5s var(--ease);
+  transition-delay:.85s;
+}
+.auth-shell.is-ready .auth-divider{ opacity:1; }
+.auth-divider::before,
+.auth-divider::after{
+  content:''; flex:1; height:1px; background:var(--c-border);
+}
+
+.auth-note{
+  text-align:center;
+  font-size:13.5px;
+  color:var(--c-text-muted);
+  opacity:0;
+  transition:opacity .5s var(--ease);
+  transition-delay:.9s;
+}
+.auth-shell.is-ready .auth-note{ opacity:1; }
+
+/* admin login */
+.auth-switch{
+  display:flex; justify-content:center;
+  margin-top:22px;
+  opacity:0;
+  transition:opacity .5s var(--ease);
+  transition-delay:.95s;
+}
+.auth-shell.is-ready .auth-switch{ opacity:1; }
+.btn-admin{
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:13.5px; font-weight:600;
+  color:var(--c-navy);
+  padding:10px 18px;
+  border-radius:var(--radius-pill);
+  border:1.5px solid var(--c-border);
+  background:#fff;
+  transition:border-color .2s var(--ease), color .2s var(--ease), background .2s var(--ease), transform .2s var(--ease);
+}
+.btn-admin svg{ width:15px; height:15px; }
+.btn-admin:hover{
+  border-color:var(--c-navy);
+  background:var(--c-navy);
+  color:#fff;
+  transform:translateY(-1px);
+}
+
+/* =====================================================
+   5. RIGHT ILLUSTRATION PANEL
+===================================================== */
+.auth-illustration{
+  flex:1 1 50%;
+  position:relative;
+  background:linear-gradient(160deg,var(--c-navy) 0%, var(--c-navy-soft) 100%);
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transform:translateX(60px);
+  opacity:0;
+  transition:transform .8s var(--ease-spring), opacity .8s var(--ease);
+  transition-delay:.2s;
+}
+.auth-shell.is-ready .auth-illustration{ transform:translateX(0); opacity:1; }
+
+/* subtle grid */
+.illustration-grid{
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size:38px 38px;
+  mask-image:radial-gradient(circle at center, rgba(0,0,0,.9), transparent 75%);
+}
+
+/* glow blobs */
+.glow-blob{
+  position:absolute;
+  border-radius:50%;
+  filter:blur(50px);
+  opacity:.55;
+  animation:blobFloat 12s ease-in-out infinite;
+}
+.glow-blob.b1{
+  width:280px; height:280px;
+  background:var(--c-primary);
+  top:-60px; left:-60px;
+  animation-duration:14s;
+}
+.glow-blob.b2{
+  width:220px; height:220px;
+  background:#3b82f6;
+  bottom:-40px; right:-40px;
+  animation-duration:16s;
+  animation-delay:-4s;
+}
+.glow-blob.b3{
+  width:160px; height:160px;
+  background:var(--c-primary-light);
+  bottom:30%; left:10%;
+  opacity:.25;
+  animation-duration:10s;
+  animation-delay:-2s;
+}
+@keyframes blobFloat{
+  0%,100%{ transform:translate(0,0) scale(1); }
+  33%{ transform:translate(20px,-25px) scale(1.08); }
+  66%{ transform:translate(-15px,15px) scale(.95); }
+}
+
+/* blur decorative squares (echoing reference composition) */
+.deco-square{
+  position:absolute;
+  border-radius:10px;
+  background:rgba(255,255,255,.06);
+  animation:squareDrift 9s ease-in-out infinite;
+}
+@keyframes squareDrift{
+  0%,100%{ transform:translateY(0) rotate(0deg); }
+  50%{ transform:translateY(-10px) rotate(4deg); }
+}
+
+/* center content card */
+.illustration-content{
+  position:relative; z-index:3;
+  width:100%;
+  max-width:380px;
+  padding:0 32px;
+  text-align:left;
+}
+.illu-card{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:var(--radius-lg);
+  padding:26px;
+  backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-lg);
+  margin-bottom:28px;
+  position:relative;
+}
+.illu-card-header{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:18px;
+}
+.illu-card-header h3{
+  font-family:var(--font-display);
+  font-size:16px; font-weight:700; color:#fff;
+}
+.illu-card-header span{
+  font-size:11px; color:rgba(255,255,255,.5);
+}
+.illu-bars{
+  display:flex; align-items:flex-end; gap:8px; height:64px;
+}
+.illu-bars span{
+  flex:1;
+  border-radius:6px 6px 2px 2px;
+  background:linear-gradient(180deg,var(--c-primary),rgba(245,166,35,.35));
+  transform-origin:bottom;
+  animation:barGrow 1.2s var(--ease-spring) forwards;
+  transform:scaleY(0);
+}
+@keyframes barGrow{ to{ transform:scaleY(1); } }
+
+.illu-floating-icon{
+  position:absolute;
+  width:54px; height:54px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:14px;
+  display:flex; align-items:center; justify-content:center;
+  backdrop-filter:blur(8px);
+  box-shadow:0 10px 24px rgba(0,0,0,.25);
+  animation:iconFloat 7s ease-in-out infinite;
+}
+.illu-floating-icon svg{ width:24px; height:24px; color:var(--c-primary); }
+.illu-floating-icon.i1{ top:6%; right:8%; animation-duration:7.5s; }
+.illu-floating-icon.i2{ bottom:14%; left:0%; animation-duration:9s; animation-delay:-2s; }
+.illu-floating-icon.i3{ top:42%; right:-6%; width:46px; height:46px; animation-duration:8s; animation-delay:-4s; }
+@keyframes iconFloat{
+  0%,100%{ transform:translateY(0) rotate(0deg); }
+  50%{ transform:translateY(-14px) rotate(-4deg); }
+}
+
+.illustration-caption h2{
+  font-family:var(--font-display);
+  font-size:24px; font-weight:700; color:#fff;
+  margin-bottom:10px;
+  line-height:1.3;
+}
+.illustration-caption p{
+  font-size:14px; color:rgba(255,255,255,.6);
+  line-height:1.6;
+}
+
+/* dotted curved path */
+.illu-dotted-path{
+  position:absolute;
+  inset:0;
+  opacity:.35;
+  pointer-events:none;
+}
+
+/* =====================================================
+   6. AMBIENT BACKGROUND PARTICLES (form side)
+===================================================== */
+.bg-particles{
+  position:absolute; inset:0; z-index:0;
+  pointer-events:none; overflow:hidden;
+}
+.particle{
+  position:absolute;
+  border-radius:50%;
+  background:var(--c-primary);
+  opacity:.12;
+  animation:particleRise linear infinite;
+}
+@keyframes particleRise{
+  0%{ transform:translateY(0) translateX(0); opacity:0; }
+  10%{ opacity:.16; }
+  90%{ opacity:.1; }
+  100%{ transform:translateY(-120vh) translateX(20px); opacity:0; }
+}
+
+/* =====================================================
+   7. RESPONSIVE
+===================================================== */
+@media (max-width: 991.98px){
+  .auth-illustration{ display:none; }
+  .auth-panel{ flex:1 1 100%; padding:32px 20px; min-height:100vh; }
+  .auth-card{ max-width:380px; }
+}
+
+@media (max-width: 420px){
+  .form-header h1{ font-size:25px; }
+  .qp-input{ height:48px; }
+  .btn-qp-primary{ height:48px; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:.001s !important; animation-iteration-count:1 !important; transition-duration:.001s !important; }
+}
+</style>
 </head>
 <body class="auth-page">
 
-<div class="d-flex justify-content-center align-items-center vh-100">
-  
-  
+<!-- =====================================================
+     PAGE LOADER
+===================================================== -->
+<div id="qp-loader" role="status" aria-live="polite">
+  <div class="loader-logo">
+    <span class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H15a1 1 0 0 1 .7.3l2.5 2.5a1 1 0 0 1 .3.7v11.5A1.5 1.5 0 0 1 17 19.5H6.5A1.5 1.5 0 0 1 5 18V4.5Z" stroke="#111827" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M9 9.5h6M9 13h6M9 16.5h3.5" stroke="#111827" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span class="logo-text">Q<span>Papers</span></span>
+  </div>
+  <div class="loader-bar-track"><div class="loader-bar-fill"></div></div>
+  <p class="loader-caption">Loading your portal</p>
+</div>
 
-  <!-- center panel -->
-  <div class="w-100" style="max-width: 420px;">
-    <div class="auth-form-wrap">
-      <div class="text-center mb-4">
-        <div class="auth-logo">
-          <i class="bi bi-journals"></i>
-          <span>Q<span>Papers</span></span>
-        </div>
-      </div>
+<!-- =====================================================
+     MAIN SHELL
+===================================================== -->
+<div class="auth-shell" id="authShell">
 
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show qp-alert mb-4" role="alert">
-              <i class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
-              {{ message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
+  <!-- ============ LEFT: FORM PANEL ============ -->
+  <section class="auth-panel">
+    <div class="bg-particles" id="bgParticles" aria-hidden="true"></div>
 
+    <div class="auth-card">
+
+      <!-- logo -->
+      <a href="#" class="auth-logo" aria-label="QPapers home">
+        <span class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H15a1 1 0 0 1 .7.3l2.5 2.5a1 1 0 0 1 .3.7v11.5A1.5 1.5 0 0 1 17 19.5H6.5A1.5 1.5 0 0 1 5 18V4.5Z" stroke="#111827" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M9 9.5h6M9 13h6M9 16.5h3.5" stroke="#111827" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="logo-text">Q<span>Papers</span></span>
+      </a>
+
+      <!-- badge -->
+      <span class="form-badge">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4 0-7.5 2-7.5 4.5V20h15v-1.5c0-2.5-3.5-4.5-7.5-4.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        Student Portal
+      </span>
+
+      <!-- header -->
       <div class="form-header">
-        <span class="form-badge"><i class="bi bi-person-fill"></i> Student Portal</span>
-        <h2>Welcome Back</h2>
+        <h1 id="welcomeTitle" aria-label="Welcome Back"></h1>
         <p>Sign in using your register number</p>
       </div>
 
-      <form method="POST" action="{{ url_for('student_login') }}" class="qp-form">
-        <div class="form-group-qp">
-          <label for="register_number"><i class="bi bi-person-badge"></i> Register Number</label>
-          <input type="text" class="form-control qp-input" id="register_number"
-                 name="register_number" placeholder="e.g. SCT register number"
-                 required autocomplete="username" />
+      <!-- alert region: real Flask flash messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-stack" id="formAlert" role="alert" aria-live="assertive">
+            {% for category, message in messages %}
+              <div class="flash-msg flash-{{ category }}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div id="formAlert" class="sr-only" role="alert" aria-live="assertive"></div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- form: posts to Flask's student_login route -->
+      <form class="qp-form" id="loginForm" method="POST" action="{{ url_for('student_login') }}" novalidate>
+
+        <div class="form-group-qp" id="regGroup">
+          <div class="input-field-wrap">
+            <input
+              type="text"
+              class="qp-input"
+              id="register_number"
+              name="register_number"
+              placeholder=" "
+              autocomplete="username"
+              required
+              aria-describedby="regError"
+            />
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M5 19c0-2.8 3.13-4.5 7-4.5s7 1.7 7 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <label for="register_number" class="floating-label">Register Number</label>
+          </div>
+          <span class="field-msg" id="regError">Please enter your register number</span>
         </div>
-        <div class="form-group-qp">
-          <label for="password"><i class="bi bi-lock"></i> Password</label>
-          <div class="input-pw-wrap">
-            <input type="password" class="form-control qp-input" id="password"
-                   name="password" placeholder="Your register number"
-                   required autocomplete="current-password" />
-            <button type="button" class="pw-toggle" onclick="togglePw('password', this)">
-              <i class="bi bi-eye"></i>
+
+        <div class="form-group-qp" id="pwGroup">
+          <div class="input-field-wrap">
+            <input
+              type="password"
+              class="qp-input"
+              id="password"
+              name="password"
+              placeholder=" "
+              autocomplete="current-password"
+              required
+              aria-describedby="pwHint pwError"
+            />
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="5" y="10.5" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <label for="password" class="floating-label">Password</label>
+            <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
             </button>
           </div>
-          <small class="form-hint">Default password is your register number</small>
+          <small class="form-hint" id="pwHint">Default password is your register number</small>
+          <span class="field-msg" id="pwError">Please enter your password</span>
         </div>
-        <button type="submit" class="btn btn-qp-primary w-100 mt-2">
-          <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+
+        <div class="form-row-between">
+          <label class="remember-check">
+            <input type="checkbox" id="rememberMe" name="remember" />
+            <span class="check-box">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12.5 9 17l11-11" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            Remember me
+          </label>
+          <a href="#" class="forgot-link">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="btn-qp-primary" id="submitBtn">
+          <span class="btn-label">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l5-4-5-4M15 12H4" stroke="#1a1305" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Sign In
+          </span>
+          <span class="btn-spinner"><span class="spinner-ring"></span></span>
+          <span class="btn-check">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12.5 9 17l11-11" stroke="#1a1305" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
         </button>
       </form>
 
       <div class="auth-divider"><span>New here?</span></div>
-      <p class="text-muted text-center mt-3">
-        Use your register number to login.
-      </p>
+      <p class="auth-note">Use your register number to login.</p>
 
-      <div class="auth-switch mt-4">
-        <a href="{{ url_for('admin_login') }}">
-          <i class="bi bi-shield-lock"></i> Admin Login
+      <div class="auth-switch">
+        <a href="{{ url_for('admin_login') }}" class="btn-admin">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 3l7 3.5v5c0 5-3 8-7 9.5-4-1.5-7-4.5-7-9.5v-5L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M12 11v3M12 8.7v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          Admin Login
         </a>
       </div>
     </div>
-  </div>
+  </section>
+
+  <!-- ============ RIGHT: ILLUSTRATION PANEL ============ -->
+  <aside class="auth-illustration" id="illustrationPanel" aria-hidden="true">
+    <div class="illustration-grid"></div>
+    <span class="glow-blob b1"></span>
+    <span class="glow-blob b2"></span>
+    <span class="glow-blob b3"></span>
+
+    <span class="deco-square" style="width:54px;height:54px;top:14%;left:18%;"></span>
+    <span class="deco-square" style="width:30px;height:30px;top:24%;left:30%;animation-delay:-3s;"></span>
+    <span class="deco-square" style="width:70px;height:70px;bottom:18%;right:16%;animation-delay:-5s;"></span>
+    <span class="deco-square" style="width:24px;height:24px;bottom:30%;right:30%;animation-delay:-1.5s;"></span>
+
+    <div class="illustration-content" id="illuParallax">
+      <div class="illu-card">
+        <div class="illu-card-header">
+          <h3>Exam Papers</h3>
+          <span>This Semester</span>
+        </div>
+        <div class="illu-bars">
+          <span style="height:40%; animation-delay:.1s;"></span>
+          <span style="height:65%; animation-delay:.2s;"></span>
+          <span style="height:50%; animation-delay:.3s;"></span>
+          <span style="height:85%; animation-delay:.4s;"></span>
+          <span style="height:60%; animation-delay:.5s;"></span>
+          <span style="height:95%; animation-delay:.6s;"></span>
+        </div>
+      </div>
+
+      <div class="illustration-caption">
+        <h2>Access every question paper in one place</h2>
+        <p>QPapers helps students find, organize and revise from previous question papers — fast, simple and always up to date.</p>
+      </div>
+    </div>
+
+    <!-- floating icons -->
+    <span class="illu-floating-icon i1">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19.5V6a2 2 0 0 1 2-2h9.5L20 8.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 11h8M8 14.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </span>
+    <span class="illu-floating-icon i2">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 7l9-4 9 4-9 4-9-4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 9.5V15c0 1.5 2.5 3 5 3s5-1.5 5-3V9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <span class="illu-floating-icon i3">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10.5" cy="10.5" r="6" stroke="currentColor" stroke-width="1.6"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </span>
+  </aside>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<!-- =====================================================
+     JAVASCRIPT
+===================================================== -->
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------
+     MODULE: Page Loader
+  --------------------------------------------------- */
+  const Loader = {
+    init(){
+      const loader = document.getElementById('qp-loader');
+      const shell = document.getElementById('authShell');
+      const MIN_DURATION = 1900; // ms, within 1.8–2.5s spec
+      const start = performance.now();
+
+      const finish = () => {
+        const elapsed = performance.now() - start;
+        const wait = Math.max(0, MIN_DURATION - elapsed);
+        setTimeout(() => {
+          loader.classList.add('is-hidden');
+          shell.classList.add('is-ready');
+          setTimeout(() => { loader.style.display = 'none'; }, 650);
+        }, wait);
+      };
+
+      if (document.readyState === 'complete') finish();
+      else window.addEventListener('load', finish);
+      // safety fallback in case load event is delayed
+      setTimeout(finish, 2500);
+    }
+  };
+
+  /* ---------------------------------------------------
+     MODULE: Animated Title (letter spacing / char-in)
+  --------------------------------------------------- */
+  const TitleAnimator = {
+    init(){
+      const el = document.getElementById('welcomeTitle');
+      const text = 'Welcome Back';
+      el.setAttribute('aria-label', text);
+      const frag = document.createDocumentFragment();
+      [...text].forEach((ch, i) => {
+        const span = document.createElement('span');
+        span.className = 'char';
+        span.textContent = ch === ' ' ? '\u00A0' : ch;
+        span.style.animationDelay = (0.5 + i * 0.035) + 's';
+        frag.appendChild(span);
+      });
+      el.appendChild(frag);
+    }
+  };
+
+  /* ---------------------------------------------------
+     MODULE: Floating Labels (handles pre-filled/autofill)
+  --------------------------------------------------- */
+  const FloatingLabels = {
+    init(){
+      document.querySelectorAll('.qp-input').forEach(input => {
+        const sync = () => input.classList.toggle('has-value', input.value.trim() !== '');
+
+        input.addEventListener('input', sync);
+        input.addEventListener('change', sync);
+        input.addEventListener('blur', sync);
+
+        // Browser autofill (esp. Chrome/Edge restoring a saved register
+        // number / password on page load) does not reliably fire native
+        // "input" events, which previously left the floating label sitting
+        // in its centered position while the autofilled text rendered in
+        // the same spot underneath it. The CSS :-webkit-autofill animation
+        // hook lets us catch that moment and sync the class explicitly.
+        input.addEventListener('animationstart', (e) => {
+          if (e.animationName === 'onAutoFillStart') sync();
+        });
+
+        sync();
+      });
+
+      // Final safety net: re-check shortly after load in case autofill
+      // populated fields after our initial sync ran (some browsers fill
+      // asynchronously, slightly after DOMContentLoaded).
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          document.querySelectorAll('.qp-input').forEach(input => {
+            input.classList.toggle('has-value', input.value.trim() !== '');
+          });
+        }, 150);
+      });
+    }
+  };
+
+  /* ---------------------------------------------------
+     MODULE: Password Visibility Toggle
+  --------------------------------------------------- */
+  const PasswordToggle = {
+    init(){
+      const btn = document.getElementById('pwToggle');
+      const input = document.getElementById('password');
+      btn.addEventListener('click', () => {
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.classList.toggle('is-active', !showing);
+        btn.setAttribute('aria-pressed', String(!showing));
+        btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+        input.focus();
+      });
+    }
+  };
+
+  /* ---------------------------------------------------
+     MODULE: Button Ripple Effect
+  --------------------------------------------------- */
+  const Ripple = {
+    init(){
+      const btn = document.getElementById('submitBtn');
+      btn.addEventListener('click', (e) => {
+        const rect = btn.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        const ripple = document.createElement('span');
+        ripple.className = 'ripple';
+        ripple.style.width = ripple.style.height = size + 'px';
+        ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+        ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+        btn.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 650);
+      });
+    }
+  };
+
+  /* ---------------------------------------------------
+     MODULE: Form Validation + Submit Flow
+  --------------------------------------------------- */
+  const FormHandler = {
+    init(){
+      this.form = document.getElementById('loginForm');
+      this.btn = document.getElementById('submitBtn');
+      this.regInput = document.getElementById('register_number');
+      this.pwInput = document.getElementById('password');
+      this.regGroup = document.getElementById('regGroup');
+      this.pwGroup = document.getElementById('pwGroup');
+      this.alertRegion = document.getElementById('formAlert');
+
+      this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+
+      // clear error state while typing
+      [this.regInput, this.pwInput].forEach(input => {
+        input.addEventListener('input', () => {
+          const group = input.closest('.form-group-qp');
+          group.classList.remove('has-error', 'shake');
+        });
+      });
+    },
+
+    validateField(input, group){
+      const valid = input.value.trim() !== '';
+      if (!valid){
+        group.classList.add('has-error');
+        group.classList.add('shake');
+        setTimeout(() => group.classList.remove('shake'), 420);
+      } else {
+        group.classList.remove('has-error');
+        group.classList.add('is-success');
+      }
+      return valid;
+    },
+
+    handleSubmit(e){
+      const regValid = this.validateField(this.regInput, this.regGroup);
+      const pwValid = this.validateField(this.pwInput, this.pwGroup);
+
+      if (!regValid || !pwValid){
+        // Stop only for empty fields — real credential checking happens
+        // server-side in Flask (student_login route), which re-renders
+        // this page with a flash message on bad register number/password.
+        e.preventDefault();
+        this.announce('Please fill in all required fields.');
+        return;
+      }
+
+      // Fields are non-empty: let the form submit normally to Flask.
+      // Show the loading state while the page navigates/re-renders.
+      this.setLoading(true);
+    },
+
+    setLoading(isLoading){
+      this.btn.classList.toggle('is-loading', isLoading);
+      this.btn.disabled = isLoading;
+    },
+
+    announce(msg){
+      this.alertRegion.textContent = msg;
+    }
+  };
+
+  /* ---------------------------------------------------
+     MODULE: Ambient Particles (form side)
+  --------------------------------------------------- */
+  const Particles = {
+    init(){
+      const wrap = document.getElementById('bgParticles');
+      if (!wrap || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const COUNT = 10;
+      for (let i = 0; i < COUNT; i++){
+        const p = document.createElement('span');
+        p.className = 'particle';
+        const size = 3 + Math.random() * 5;
+        p.style.width = p.style.height = size + 'px';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.bottom = '-20px';
+        p.style.animationDuration = (10 + Math.random() * 8) + 's';
+        p.style.animationDelay = (Math.random() * 10) + 's';
+        wrap.appendChild(p);
+      }
+    }
+  };
+
+  /* ---------------------------------------------------
+     MODULE: Illustration Parallax (mouse interaction)
+  --------------------------------------------------- */
+  const Parallax = {
+    init(){
+      const panel = document.getElementById('illustrationPanel');
+      const content = document.getElementById('illuParallax');
+      if (!panel || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      if (window.matchMedia('(max-width: 991.98px)').matches) return;
+
+      let raf = null;
+      panel.addEventListener('mousemove', (e) => {
+        const rect = panel.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          content.style.transform = `translate(${x * -10}px, ${y * -8}px)`;
+          panel.querySelectorAll('.illu-floating-icon').forEach((icon, i) => {
+            const depth = (i + 1) * 4;
+            icon.style.transform = `translate(${x * depth}px, ${y * depth}px)`;
+          });
+        });
+      });
+      panel.addEventListener('mouseleave', () => {
+        content.style.transform = 'translate(0,0)';
+        panel.querySelectorAll('.illu-floating-icon').forEach(icon => {
+          icon.style.transform = '';
+        });
+      });
+    }
+  };
+
+  /* ---------------------------------------------------
+     INIT ALL MODULES
+  --------------------------------------------------- */
+  document.addEventListener('DOMContentLoaded', () => {
+    Loader.init();
+    TitleAnimator.init();
+    FloatingLabels.init();
+    PasswordToggle.init();
+    Ripple.init();
+    FormHandler.init();
+    Particles.init();
+    Parallax.init();
+  });
+})();
+</script>
 </body>
 </html>
